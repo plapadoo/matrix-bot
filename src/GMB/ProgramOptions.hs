@@ -1,0 +1,30 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
+module GitCal.ProgramOptions(ProgramOptions(..),readProgramOptions,poConfigFile) where
+
+import Prelude(Int)
+import qualified Options.Applicative as OptAppl
+import System.IO(IO)
+import Data.Monoid((<>))
+import Control.Applicative((<$>),(<*>))
+import System.FilePath(FilePath)
+
+data ProgramOptions = ProgramOptions {
+    _poConfigFile :: FilePath
+  }
+
+makeLenses ''ProgramOptions
+
+programOptionsParser :: OptAppl.Parser ProgramOptions
+programOptionsParser =
+  ProgramOptions
+  <$> textOption ( OptAppl.long "config-file" <> OptAppl.help "Where to put the config file" <> OptAppl.value "/etc/gitlab-matrix-bot.conf" )
+
+readProgramOptions :: IO ProgramOptions
+readProgramOptions =
+  OptAppl.execParser opts
+  where
+    opts = OptAppl.info (OptAppl.helper <*> programOptionsParser)
+      ( OptAppl.fullDesc
+     <> OptAppl.progDesc "Listen for gitlab webhooks, send them to a matrix channel"
+     <> OptAppl.header "gitlab-matrix-bot - send git stuff to matrix" )
