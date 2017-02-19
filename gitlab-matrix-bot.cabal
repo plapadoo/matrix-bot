@@ -17,6 +17,9 @@ executable gitlab-matrix-bot
   hs-source-dirs:      src
   main-is:             Main.hs
   default-language:    Haskell2010
+  other-modules: GMB.Http
+               , GMB.Matrix
+               , GMB.Util
   build-depends:       base >= 4.7 && < 5
                      , lens
                      , filepath
@@ -28,4 +31,7 @@ executable gitlab-matrix-bot
                      , aeson
                      , time
                      , iso8601-time
+                     , bytestring
+                     , free
+                     , wreq
                      

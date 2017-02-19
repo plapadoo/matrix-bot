@@ -4,35 +4,52 @@ module GMB.Matrix(
   login,
   joinRoom,
   sendMessage,
-  MatrixLoginRequest,
+  mlrpErrCode,
+  mlrpError,
+  mlrpAccessToken,
+  MatrixLoginRequest(..),
   MatrixLoginReply,
-  MatrixJoinRequest,
+  MatrixJoinRequest(..),
   MatrixJoinReply,
-  MatrixSendMessageRequest,
+  MatrixSendMessageRequest(..),
+  MatrixContext(..),
   MatrixSendMessageReply) where
 
+import GMB.Http(HttpMethod(..),hresContent,jsonHttpRequest,HttpRequest(..))
 import           Control.Applicative    ((<*>))
-import           Control.Lens           (makeLenses)
+import           Control.Lens           (makeLenses, to, view, (&), (.~), (^.))
+import           Control.Monad          (return)
+import           Control.Monad.Free     (Free, liftF)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Aeson             (FromJSON (..), ToJSON (..), Value (..),
                                          object, (.:?), (.=))
+import qualified Data.ByteString.Lazy   as BSL
+import           Data.Either            (Either (..))
+import           Data.Function          (($), (.))
+import           Data.Function          (id)
+import           Data.Functor           (Functor (..))
 import           Data.Functor           ((<$>))
+import           Data.Functor.Sum       (Sum)
 import           Data.Int               (Int)
+import           Data.List              (null)
+import           Data.Maybe             (Maybe (..))
 import           Data.Maybe             (Maybe)
-import           Data.Text              (Text,pack)
+import           Data.Monoid            ((<>))
+import qualified Data.Text              as Text
 import           GMB.Util               (putLog)
-import           Prelude                (undefined)
+import           Prelude                (error, undefined)
 import           System.FilePath
+import           Text.Show              (show)
 
 data MatrixLoginRequest = MatrixLoginRequest {
-    _mlrUsername :: Text
-  , _mlrPassword :: Text
+    _mlrUsername :: Text.Text
+  , _mlrPassword :: Text.Text
   }
 
 instance ToJSON MatrixLoginRequest where
   toJSON (MatrixLoginRequest username password) =
     object [
-      ( "type" :: Text ) .= ( "m.login.password" :: Text),
+      ( "type" :: Text.Text ) .= ( "m.login.password" :: Text.Text),
       "user" .= username,
       "password" .= password
       ]
@@ -40,9 +57,9 @@ instance ToJSON MatrixLoginRequest where
 makeLenses ''MatrixLoginRequest
 
 data MatrixLoginReply = MatrixLoginReply {
-    _mlrpErrCode     :: Maybe Text
-  , _mlrpError       :: Maybe Text
-  , _mlrpAccessToken :: Maybe Text
+    _mlrpErrCode     :: Maybe Text.Text
+  , _mlrpError       :: Maybe Text.Text
+  , _mlrpAccessToken :: Maybe Text.Text
   }
 
 instance FromJSON MatrixLoginReply where
@@ -51,8 +68,8 @@ instance FromJSON MatrixLoginReply where
 makeLenses ''MatrixLoginReply
 
 data MatrixJoinRequest = MatrixJoinRequest {
-    _mjrAccessToken :: Text
-  , _mjrRoomId      :: Text
+    _mjrAccessToken :: Text.Text
+  , _mjrRoomId      :: Text.Text
   }
 
 instance ToJSON MatrixJoinRequest where
@@ -61,8 +78,8 @@ instance ToJSON MatrixJoinRequest where
 makeLenses ''MatrixJoinRequest
 
 data MatrixJoinReply = MatrixJoinReply {
-    _mjrpErrCode :: Maybe Text
-  , _mjrpError   :: Maybe Text
+    _mjrpErrCode :: Maybe Text.Text
+  , _mjrpError   :: Maybe Text.Text
   }
 
 instance FromJSON MatrixJoinReply where
@@ -71,24 +88,24 @@ instance FromJSON MatrixJoinReply where
 makeLenses ''MatrixJoinReply
 
 data MatrixSendMessageRequest = MatrixSendMessageRequest {
-    _msmAccessToken :: Text
+    _msmAccessToken :: Text.Text
   , _msmTxnId       :: Int
-  , _msmRoomId      :: Text
-  , _msmMessage     :: Text
+  , _msmRoomId      :: Text.Text
+  , _msmMessage     :: Text.Text
   }
 
 instance ToJSON MatrixSendMessageRequest where
   toJSON (MatrixSendMessageRequest _ _ _ message) =
     object [
-      ( "type" :: Text ) .= ( "m.text" :: Text),
+      ( "type" :: Text.Text ) .= ( "m.text" :: Text.Text),
       "body" .= message
       ]
 
 makeLenses ''MatrixSendMessageRequest
 
 data MatrixSendMessageReply = MatrixSendMessageReply {
-    _msmrpErrCode :: Maybe Text
-  , _msmrpError   :: Maybe Text
+    _msmrpErrCode :: Maybe Text.Text
+  , _msmrpError   :: Maybe Text.Text
   }
 
 instance FromJSON MatrixSendMessageReply where
@@ -97,30 +114,17 @@ instance FromJSON MatrixSendMessageReply where
 makeLenses ''MatrixSendMessageReply
 
 data MatrixContext = MatrixContext {
-    _mcBaseUrl :: Text
+    _mcBaseUrl :: Text.Text
   , _mcLogFile :: FilePath
   }
 
 makeLenses ''MatrixContext
 
 login :: MonadIO m => MatrixContext -> MatrixLoginRequest -> m MatrixLoginReply
-login context = do
-  let opts = defaults & checkStatus .~ Just trivialStatusChecker
-  putLog (logFile ^. mcLogFile) $ " Issuing request on " <> (pack baseUrl)
-  response <- liftIO $ getWith opts baseUrl
-  case response ^. responseStatus . statusCode of
-    200 -> do
-      liftIO $ putLog logFile $ "Request was OK 200"
-      liftIO $ putLog logFile $ "Next request was " <> showText ( Text.pack <$> (response ^? responseLink "rel" "next" . linkURL . to BS8.unpack) )
-      let nextRequest = GitlabIssueRequest <$> (response ^? responseLink "rel" "next" . linkURL . to BS8.unpack)
-      bimapEitherT Text.pack (GitlabIssueResult nextRequest . IssueList) (hoistEither (eitherDecode (response ^. responseBody)))
-    other -> do
-      liftIO $ putLog logFile $ "Request was " <> showText other
-      let bodyText = response ^. responseBody . to (decodeUtf8 . toStrict)
-      left $ "status code was " <> showText other <> ", content was " <> (if Text.null bodyText then "empty" else bodyText)
+login context request = view hresContent <$> (jsonHttpRequest (HttpRequest ((context ^. mcBaseUrl) <> "_matrix/client/r0/login") HttpMethodPost "application/json" request))
 
-joinRoom :: MonadIO m => MatrixJoinRequest -> m MatrixJoinReply
-joinRoom = undefined
+joinRoom :: MonadIO m => MatrixContext -> MatrixJoinRequest -> m MatrixJoinReply
+joinRoom context request = view hresContent <$> (jsonHttpRequest (HttpRequest ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. mjrRoomId) <> "/join?access_token=" <> (request ^. mjrAccessToken)) HttpMethodPost "application/json" request))
 
-sendMessage :: MonadIO m => MatrixSendMessageRequest -> m MatrixSendMessageReply
-sendMessage = undefined
+sendMessage :: MonadIO m => MatrixContext -> MatrixSendMessageRequest -> m MatrixSendMessageReply
+sendMessage context request = view hresContent <$> (jsonHttpRequest (HttpRequest ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. msmRoomId) <> "/send/m.room/message/" <> (request ^. msmTxnId . to (Text.pack . show)) <> "?access_token=" <> (request ^. msmAccessToken)) HttpMethodPost "application/json" request))
