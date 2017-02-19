@@ -29,7 +29,7 @@ lineParser =
                   <*> ((Atto.skipSpace *> Atto.takeWhile (/= ',') <* Atto.skipSpace) `Atto.sepBy` (Atto.char ','))
 
 fileParser :: Atto.Parser [RepoMappingLine]
-fileParser = lineParser `Atto.sepBy` Atto.char '\n' <* (Atto.char '\n' Atto.<?> "final newline")
+fileParser = lineParser `Atto.sepBy` Atto.char '\n'
 
 readRepoMapping :: MonadIO m => FilePath -> m (Either String RepoMapping)
 readRepoMapping fileName = do
