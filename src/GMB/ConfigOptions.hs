@@ -1,6 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
-module GMB.ConfigOptions(ConfigOptions(..),readConfigOptions,coLogFile,coMappingsFile,coGitlabListenPort,coMatrixUserName,coMatrixPassword) where
+module GMB.ConfigOptions(
+  ConfigOptions(..),
+  readConfigOptions,
+  coLogFile,
+  coMappingsFile,
+  coGitlabListenPort,
+  coMatrixUserName,
+  coMatrixPassword,
+  coMatrixBasePath) where
 
 import           Control.Applicative    ((<*>))
 import           Control.Lens           (makeLenses)
@@ -16,6 +24,7 @@ data ConfigOptions = ConfigOptions {
     _coLogFile          :: FilePath
   , _coMappingsFile     :: FilePath
   , _coGitlabListenPort :: Int
+  , _coMatrixBasePath   :: Text.Text
   , _coMatrixUserName   :: Text.Text
   , _coMatrixPassword   :: Text.Text
   }
@@ -30,5 +39,6 @@ readConfigOptions configFilePath = do
   ConfigOptions <$> (requireLift config "log-file")
                 <*> (requireLift config "mappings-file")
                 <*> (requireLift config "gitlab.listen-port")
+                <*> (requireLift config "matrix.base-path")
                 <*> (requireLift config "matrix.username")
                 <*> (requireLift config "matrix.password")

@@ -1,20 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
-module GMB.RepoMapping(RepoMapping) where
+module GMB.RepoMapping(RepoMapping,readRepoMapping) where
 
+import           Control.Applicative    ((*>), (<*), (<*>))
+import           Control.Monad          (return)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Data.Map          (Map,singleton)
+import qualified Data.Attoparsec.Text   as Atto
+import           Data.Either            (Either)
+import           Data.Eq                ((/=), (==))
+import           Data.Foldable          (foldMap)
+import           Data.Functor           ((<$>))
+import           Data.Map               (Map, singleton)
+import           Data.String            (String)
 import           Data.Text              (Text)
-import Data.Text.IO(readFile)
+import           Data.Text.IO           (readFile)
 import           Prelude                (undefined)
 import           System.FilePath
-import qualified Data.Attoparsec.Text as Atto
-import Control.Applicative((<*>),(*>),(<*))
-import Data.Functor((<$>))
-import Data.Eq((/=),(==))
-import Data.Either(Either)
-import Data.String(String)
-import Data.Foldable(foldMap)
-import Control.Monad(return)
 
 type RepoMapping = Map Text [Text]
 

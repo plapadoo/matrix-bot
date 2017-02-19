@@ -17,11 +17,17 @@ import           Prelude       (error, undefined)
 import           System.IO     (IO)
 import Data.Maybe(fromJust)
 import Data.Text.IO(putStrLn)
+import GMB.ProgramOptions(readProgramOptions,poConfigFile)
+import GMB.ConfigOptions(readConfigOptions,coMappingsFile,coMatrixBasePath,coMatrixUserName,coMatrixPassword,coLogFile)
+import GMB.RepoMapping(readRepoMapping)
 
 main :: IO ()
 main = do
-  let context = MatrixContext "" "/tmp/log.txt"
-  loginReply <- login context (MatrixLoginRequest "gitbot" "")
+  options <- readProgramOptions
+  configOptions <- readConfigOptions (options ^. poConfigFile)
+  repoMapping <- readRepoMapping (configOptions ^. coMappingsFile)
+  let context = MatrixContext (configOptions ^. coMatrixBasePath) (configOptions ^. coLogFile)
+  loginReply <- login context (MatrixLoginRequest (configOptions ^. coMatrixUserName) (configOptions ^. coMatrixPassword))
   case loginReply ^. mlrpError of
     Nothing -> do
       let accessToken = loginReply ^. mlrpAccessToken .to fromJust

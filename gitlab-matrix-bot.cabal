@@ -20,6 +20,9 @@ executable gitlab-matrix-bot
   other-modules: GMB.Http
                , GMB.Matrix
                , GMB.Util
+               , GMB.ConfigOptions
+               , GMB.RepoMapping
+               , GMB.ProgramOptions
   build-depends:       base >= 4.7 && < 5
                      , lens
                      , filepath
