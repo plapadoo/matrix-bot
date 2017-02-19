@@ -7,6 +7,7 @@ module GMB.Matrix(
   mlrpErrCode,
   mlrpError,
   mlrpAccessToken,
+  mjrpError,
   MatrixLoginRequest(..),
   MatrixLoginReply,
   MatrixJoinRequest(..),
@@ -15,6 +16,7 @@ module GMB.Matrix(
   MatrixContext(..),
   MatrixSendMessageReply) where
 
+import Debug.Trace(traceShowId)
 import GMB.Http(HttpMethod(..),hresContent,jsonHttpRequest,HttpRequest(..))
 import           Control.Applicative    ((<*>))
 import           Control.Lens           (makeLenses, to, view, (&), (.~), (^.))
@@ -96,10 +98,12 @@ data MatrixSendMessageRequest = MatrixSendMessageRequest {
 
 instance ToJSON MatrixSendMessageRequest where
   toJSON (MatrixSendMessageRequest _ _ _ message) =
-    object [
-      ( "type" :: Text.Text ) .= ( "m.text" :: Text.Text),
-      "body" .= message
-      ]
+    let msgtype = "m.text" :: Text.Text
+    in
+      object [
+        "msgtype" .= msgtype,
+        "body" .= message
+        ]
 
 makeLenses ''MatrixSendMessageRequest
 
@@ -121,10 +125,16 @@ data MatrixContext = MatrixContext {
 makeLenses ''MatrixContext
 
 login :: MonadIO m => MatrixContext -> MatrixLoginRequest -> m MatrixLoginReply
-login context request = view hresContent <$> (jsonHttpRequest (HttpRequest ((context ^. mcBaseUrl) <> "_matrix/client/r0/login") HttpMethodPost "application/json" request))
+login context request =
+  let url = (context ^. mcBaseUrl) <> "_matrix/client/r0/login"
+  in view hresContent <$> (jsonHttpRequest (HttpRequest url HttpMethodPost "application/json" request))
 
 joinRoom :: MonadIO m => MatrixContext -> MatrixJoinRequest -> m MatrixJoinReply
-joinRoom context request = view hresContent <$> (jsonHttpRequest (HttpRequest ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. mjrRoomId) <> "/join?access_token=" <> (request ^. mjrAccessToken)) HttpMethodPost "application/json" request))
+joinRoom context request =
+  let url = (context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. mjrRoomId) <> "/join?access_token=" <> (request ^. mjrAccessToken)
+  in view hresContent <$> (jsonHttpRequest (HttpRequest url HttpMethodPost "application/json" request))
 
 sendMessage :: MonadIO m => MatrixContext -> MatrixSendMessageRequest -> m MatrixSendMessageReply
-sendMessage context request = view hresContent <$> (jsonHttpRequest (HttpRequest ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. msmRoomId) <> "/send/m.room/message/" <> (request ^. msmTxnId . to (Text.pack . show)) <> "?access_token=" <> (request ^. msmAccessToken)) HttpMethodPost "application/json" request))
+sendMessage context request =
+  let url = ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. msmRoomId) <> "/send/m.room.message/" <> (request ^. msmTxnId . to (Text.pack . show)) <> "?access_token=" <> (request ^. msmAccessToken))
+  in view hresContent <$> (jsonHttpRequest (HttpRequest url HttpMethodPut "application/json" request))
