@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
-module GMB.Util(putLog,forceEither) where
+module GMB.Util(putLog,forceEither,textShow) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Eq                ((==))
 import           Data.Functor           ((<$>))
+import Data.Function((.))
 import           Data.Monoid            ((<>))
 import           Data.Text              (Text, pack, unpack)
 import           Data.Text.IO           (appendFile, putStr)
@@ -21,6 +22,9 @@ putLog logFile str = do
   if logFile == "-"
     then liftIO (putStr text)
     else liftIO (appendFile logFile text)
+
+textShow :: Show a => a -> Text
+textShow = pack . show
 
 forceEither :: Show e => Either e a -> a
 forceEither (Left e) = error (show e)

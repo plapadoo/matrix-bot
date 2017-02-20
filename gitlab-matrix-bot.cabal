@@ -30,6 +30,8 @@ executable gitlab-matrix-bot
                      , text
                      , containers
                      , configurator
+                     , scotty
+                     , mtl
                      , attoparsec
                      , aeson
                      , time

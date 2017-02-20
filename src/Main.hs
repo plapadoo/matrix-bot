@@ -1,29 +1,43 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Control.Lens  ((^.),to)
-import           Data.Function (($), (.))
-import           Data.Maybe    (Maybe (..))
-import           Data.Monoid   ((<>))
-import Control.Monad(return,forM_)
-import qualified Data.Text     as Text
-import           GMB.Matrix    (MatrixContext (..), MatrixJoinRequest (..),
-                                MatrixLoginRequest (..),
-                                MatrixSendMessageRequest (..), joinRoom, login,
-                                mlrpAccessToken, mlrpError, mlrpErrCode,
-                                mjrpError,
-                                sendMessage)
-import           Prelude       (error, undefined)
-import           System.IO     (IO)
-import Data.Maybe(fromJust)
-import Data.Text.IO(putStrLn)
-import GMB.ProgramOptions(readProgramOptions,poConfigFile)
-import GMB.ConfigOptions(readConfigOptions,coMappingsFile,coMatrixBasePath,coMatrixUserName,coMatrixPassword,coLogFile)
-import GMB.RepoMapping(readRepoMapping)
-import           Data.Map               (keys)
-import GMB.Util(forceEither)
-import Data.Functor((<$>))
+import           Control.Lens       (to, (^.))
+import           Control.Monad      (forM_, return)
+import           Data.Function      (($), (.))
+import           Data.Functor       ((<$>))
+import           Data.Maybe         (Maybe (..))
+import           Data.Maybe         (fromJust)
+import           Data.Monoid        ((<>))
+import qualified Data.Text          as Text
+import           Data.Text.IO       (putStrLn)
+import           GMB.ConfigOptions  (coGitlabListenPort, coLogFile,
+                                     coMappingsFile, coMatrixBasePath,
+                                     coMatrixPassword, coMatrixUserName,
+                                     readConfigOptions)
+import           GMB.Gitlab         (GitlabEvent, eventRepository,
+                                     repositoryName)
+import           GMB.Matrix         (MatrixContext (..), MatrixJoinRequest (..),
+                                     MatrixLoginRequest (..),
+                                     MatrixSendMessageRequest (..), joinRoom,
+                                     login, mjrpError, mlrpAccessToken,
+                                     mlrpErrCode, mlrpError, sendMessage)
+import           GMB.ProgramOptions (poConfigFile, readProgramOptions)
+import           GMB.RepoMapping    (Repo (..), RepoMapping, Room (..),
+                                     readRepoMapping, rooms, roomsForRepo)
+import           GMB.Util           (forceEither, textShow)
+import           GMB.WebServer      (ServerData (..), webServer)
+import           Prelude            (error, undefined)
+import           System.IO          (IO)
 
+callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
+callback context accessToken repoMapping event = do
+  putStrLn $ "repo mapping: " <> textShow repoMapping
+  case (eventRepository event) of
+    Nothing -> return ()
+    Just repo ->
+      forM_ (roomsForRepo repoMapping (Repo (repositoryName repo))) $ \(Room room) -> do
+        sendReply <- sendMessage context (MatrixSendMessageRequest accessToken 1 room "Haskell hi!")
+        return ()
 
 main :: IO ()
 main = do
@@ -36,12 +50,14 @@ main = do
     Nothing -> do
       let accessToken = loginReply ^. mlrpAccessToken .to fromJust
       putStrLn $ "Login success, access token: " <> accessToken
-      forM_ (keys repoMapping) $ \room -> do
+      forM_ (rooms repoMapping) $ \(Room room) -> do
         joinReply <- joinRoom context (MatrixJoinRequest accessToken room)
         case joinReply ^. mjrpError of
-          Nothing -> do
-            putStrLn $ "Join " <> room <> " success"
-            sendReply <- sendMessage context (MatrixSendMessageRequest accessToken 1 room "Haskell hi!")
-            return ()
-          Just e -> error $ "join failed: " <> (Text.unpack e)
+          Nothing -> putStrLn $ "Join " <> room <> " success"
+          Just e  -> error $ "join failed: " <> (Text.unpack e)
+      putStrLn "All rooms joined"
+      let listenPort = configOptions ^. coGitlabListenPort
+      putStrLn $ "Listening on " <> (textShow listenPort)
+      webServer listenPort (ServerData (callback context accessToken repoMapping))
+
     Just e -> error $ "login failed: " <> (Text.unpack e)
