@@ -2,9 +2,10 @@
 module GMB.Util(putLog,forceEither,textShow) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Data.Either            (Either (..))
 import           Data.Eq                ((==))
+import           Data.Function          ((.))
 import           Data.Functor           ((<$>))
-import Data.Function((.))
 import           Data.Monoid            ((<>))
 import           Data.Text              (Text, pack, unpack)
 import           Data.Text.IO           (appendFile, putStr)
@@ -12,8 +13,7 @@ import           Data.Time.Clock        (getCurrentTime)
 import           Data.Time.ISO8601      (formatISO8601Millis)
 import           Prelude                (error)
 import           System.FilePath        (FilePath)
-import Text.Show(Show,show)
-import Data.Either(Either(..))
+import           Text.Show              (Show, show)
 
 putLog :: MonadIO m => FilePath -> Text -> m ()
 putLog logFile str = do
@@ -27,5 +27,5 @@ textShow :: Show a => a -> Text
 textShow = pack . show
 
 forceEither :: Show e => Either e a -> a
-forceEither (Left e) = error (show e)
+forceEither (Left e)  = error (show e)
 forceEither (Right e) = e

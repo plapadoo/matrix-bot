@@ -20,6 +20,8 @@ executable gitlab-matrix-bot
   other-modules: GMB.Http
                , GMB.Matrix
                , GMB.Util
+               , GMB.Gitlab
+               , GMB.WebServer
                , GMB.ConfigOptions
                , GMB.RepoMapping
                , GMB.ProgramOptions
