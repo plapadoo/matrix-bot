@@ -7,6 +7,7 @@ module GMB.Gitlab(
   eventRepository,
   commitMessage,
   eventUserName,
+  eventUserUserName,
   objectTitle,
   objectNote,
   objectUrl,
@@ -18,6 +19,7 @@ import Prelude()
 import GHC.Generics(Generic)
 import Data.Maybe(Maybe)
 import Data.Text(Text)
+import Data.Functor((<$>))
 import Data.Aeson(FromJSON)
 
 data GitlabRepository = GitlabRepository {
@@ -32,22 +34,27 @@ commitMessage :: GitlabCommit -> Text
 commitMessage = message
 
 data GitlabObjectAttributes = GitlabObjectAttributes {
-    title :: Text
+    title :: Maybe Text
   , url :: Text
-  , note :: Text
+  , note :: Maybe Text
   } deriving(Generic)
 
-objectTitle :: GitlabObjectAttributes -> Text
+objectTitle :: GitlabObjectAttributes -> Maybe Text
 objectTitle = title
 
-objectNote :: GitlabObjectAttributes -> Text
+objectNote :: GitlabObjectAttributes -> Maybe Text
 objectNote = note
 
 objectUrl :: GitlabObjectAttributes -> Text
 objectUrl = url
 
+data GitlabUser = GitlabUser {
+    username :: Text
+  } deriving(Generic)
+
 data GitlabEvent = GitlabEvent {
     object_kind :: Text
+  , user :: Maybe GitlabUser
   , user_name :: Maybe Text
   , repository :: Maybe GitlabRepository
   , commits :: Maybe [GitlabCommit]
@@ -69,6 +76,9 @@ eventRepository = repository
 eventUserName :: GitlabEvent -> Maybe Text
 eventUserName = user_name
 
+eventUserUserName :: GitlabEvent -> Maybe Text
+eventUserUserName event = username <$> user event
+
 repositoryName :: GitlabRepository -> Text
 repositoryName = name
 
@@ -76,3 +86,4 @@ instance FromJSON GitlabCommit
 instance FromJSON GitlabRepository
 instance FromJSON GitlabEvent
 instance FromJSON GitlabObjectAttributes
+instance FromJSON GitlabUser

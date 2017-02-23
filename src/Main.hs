@@ -18,7 +18,7 @@ import           GMB.ConfigOptions  (coGitlabListenPort, coLogFile,
                                      readConfigOptions)
 import           GMB.Gitlab         (GitlabEvent, objectNote,objectTitle,objectUrl,commitMessage, eventCommits,
                                      eventObjectAttributes, eventObjectKind,
-                                     eventRepository, eventUserName,
+                                     eventRepository, eventUserUserName,eventUserName,
                                      repositoryName)
 import           GMB.Matrix         (MatrixContext (..), MatrixJoinRequest (..),
                                      MatrixLoginRequest (..),
@@ -49,19 +49,19 @@ callback context accessToken repoMapping event = do
         void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
     "issue" -> do
       let repo = fromJust (eventRepository event)
-      let userName = fold (eventUserName event)
+      let userName = fold (eventUserUserName event)
       let attributes = fromJust (eventObjectAttributes event)
-      let message = userName <> " added issue " <> (surroundQuotes (objectTitle attributes)) <> " to " <> repositoryName repo
-      let issueLink = "<a href=\"" <> (objectUrl attributes) <> "\">" <> (surroundQuotes (objectTitle attributes)) <> "</a>"
+      let message = userName <> " added issue " <> (surroundQuotes . fromJust . objectTitle $ attributes) <> " to " <> repositoryName repo
+      let issueLink = "<a href=\"" <> (objectUrl attributes) <> "\">" <> (surroundQuotes . fromJust . objectTitle $ attributes) <> "</a>"
       let formattedMessage = (surroundHtml "strong" userName) <> " added issue " <> issueLink <> " to " <> surroundHtml "strong" (repositoryName repo)
       forM_ (roomsForRepo repoMapping (Repo (repositoryName repo))) $ \(Room room) ->
         void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
     "note" -> do
       let repo = fromJust (eventRepository event)
-      let userName = fold (eventUserName event)
+      let userName = fold (eventUserUserName event)
       let attributes = fromJust (eventObjectAttributes event)
-      let message = userName <> " commented " <> (surroundQuotes (objectNote attributes)) <> " to " <> repositoryName repo
-      let issueLink = "<a href=\"" <> (objectUrl attributes) <> "\">" <> (surroundQuotes (objectNote attributes)) <> "</a>"
+      let message = userName <> " commented " <> (surroundQuotes . fromJust . objectNote $ attributes) <> " to " <> repositoryName repo
+      let issueLink = "<a href=\"" <> (objectUrl attributes) <> "\">" <> (surroundQuotes . fromJust . objectNote $ attributes) <> "</a>"
       let formattedMessage = (surroundHtml "strong" userName) <> " commented " <> issueLink <> " to " <> surroundHtml "strong" (repositoryName repo)
       forM_ (roomsForRepo repoMapping (Repo (repositoryName repo))) $ \(Room room) ->
         void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
