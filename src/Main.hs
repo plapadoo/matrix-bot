@@ -37,7 +37,6 @@ import           System.IO          (IO)
 
 callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
 callback context accessToken repoMapping event = do
-  putLog (context ^. mcLogFile) $ "repo mapping: " <> textShow repoMapping
   case eventObjectKind event of
     "push" -> do
       let repo = fromJust (eventRepository event)
@@ -74,6 +73,7 @@ main = do
   options <- readProgramOptions
   configOptions <- readConfigOptions (options ^. poConfigFile)
   repoMapping <- forceEither <$> readRepoMapping (configOptions ^. coMappingsFile)
+  putLog (configOptions ^. coLogFile) $ "repo mapping: " <> textShow repoMapping
   putLog (configOptions ^. coLogFile) $ "Logging in..."
   let context = MatrixContext (configOptions ^. coMatrixBasePath) (configOptions ^. coLogFile)
   loginReply <- login context (MatrixLoginRequest (configOptions ^. coMatrixUserName) (configOptions ^. coMatrixPassword))
