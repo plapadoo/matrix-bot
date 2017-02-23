@@ -15,6 +15,8 @@ import           Data.Either            (Either)
 import           Data.Eq                ((/=), (==),Eq)
 import           Data.Foldable          (foldMap)
 import           Data.Functor           ((<$>))
+import Data.Char(Char)
+import Data.Bool(Bool,(||))
 import Data.Function((.))
 import           Data.Map               (Map, keys,singleton,toList)
 import           Data.Ord               (Ord)
@@ -47,10 +49,15 @@ data RepoMappingLine = RepoMappingLine Text [Text]
 linesToMapping :: [RepoMappingLine] -> RepoMapping
 linesToMapping = foldMap (\(RepoMappingLine key values) -> singleton (Room key) (Repo <$> values))
 
+isSpace :: Char -> Bool
+isSpace c = c == ' ' || c == '\t'
+
+attoSkipSpace = Atto.skipWhile isSpace
+
 lineParser :: Atto.Parser RepoMappingLine
 lineParser =
-  RepoMappingLine <$> (Atto.skipSpace *> (Atto.takeWhile (/= '=') <* Atto.char '=') )
-                  <*> ((Atto.skipSpace *> Atto.takeWhile (Atto.notInClass ",\n") <* Atto.skipSpace) `Atto.sepBy` (Atto.char ','))
+  RepoMappingLine <$> (attoSkipSpace *> (Atto.takeWhile (/= '=') <* Atto.char '=') )
+                  <*> ((attoSkipSpace *> Atto.takeWhile (Atto.notInClass ",\n") <* attoSkipSpace) `Atto.sepBy` (Atto.char ','))
 
 fileParser :: Atto.Parser [RepoMappingLine]
 fileParser = lineParser `Atto.sepBy` Atto.char '\n'
