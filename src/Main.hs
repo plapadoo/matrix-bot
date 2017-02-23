@@ -3,29 +3,31 @@ module Main where
 
 import           Control.Lens       (to, (^.))
 import           Control.Monad      (forM_, return)
-import           Data.Function      (($), (.))
+import           Data.Foldable      (fold, foldMap)
+import           Data.Function      (id, ($), (.))
 import           Data.Functor       ((<$>))
+import           Data.List          (length)
 import           Data.Maybe         (Maybe (..))
-import           Data.Maybe         (fromJust)
-import           Data.Monoid        ((<>))
+import           Data.Maybe         (fromJust, maybe)
+import           Data.Monoid        (mempty, (<>))
 import qualified Data.Text          as Text
 import           Data.Text.IO       (putStrLn)
 import           GMB.ConfigOptions  (coGitlabListenPort, coLogFile,
                                      coMappingsFile, coMatrixBasePath,
                                      coMatrixPassword, coMatrixUserName,
                                      readConfigOptions)
-import           GMB.Gitlab         (GitlabEvent, eventRepository,
-                                     repositoryName)
+import           GMB.Gitlab         (GitlabEvent, commitMessage,eventCommits, eventRepository,
+                                     eventUserName, repositoryName)
 import           GMB.Matrix         (MatrixContext (..), MatrixJoinRequest (..),
                                      MatrixLoginRequest (..),
                                      MatrixSendMessageRequest (..), joinRoom,
-                                     mcLogFile,
-                                     login, mjrpError, mlrpAccessToken,
-                                     mlrpErrCode, mlrpError, sendMessage)
+                                     login, mcLogFile, mjrpError,
+                                     mlrpAccessToken, mlrpErrCode, mlrpError,
+                                     sendMessage)
 import           GMB.ProgramOptions (poConfigFile, readProgramOptions)
 import           GMB.RepoMapping    (Repo (..), RepoMapping, Room (..),
                                      readRepoMapping, rooms, roomsForRepo)
-import           GMB.Util           (forceEither, textShow,putLog)
+import           GMB.Util           (forceEither, putLog, textShow,surround,surroundHtml)
 import           GMB.WebServer      (ServerData (..), webServer)
 import           Prelude            (error, undefined)
 import           System.IO          (IO)
@@ -34,10 +36,16 @@ callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
 callback context accessToken repoMapping event = do
   putLog (context ^. mcLogFile) $ "repo mapping: " <> textShow repoMapping
   case (eventRepository event) of
-    Nothing -> return ()
-    Just repo ->
+    Nothing -> do
+      putLog (context ^. mcLogFile) $ "got event without repository, not continuing"
+    Just repo -> do
+      let commitCount = maybe "0" textShow (length <$> (eventCommits event))
+      let userName = fold (eventUserName event)
+      let commits = fold ((Text.intercalate ", " . ((surround "“" "”" . Text.strip . commitMessage) <$>)) <$> eventCommits event)
+      let message = userName <> " pushed " <> commitCount <> " commit(s) to " <> repositoryName repo <> ": " <> commits
+      let formattedMessage = (surroundHtml "strong" userName) <> " pushed " <> commitCount <> " commit(s) to " <> surroundHtml "strong" (repositoryName repo) <> ": " <> commits
       forM_ (roomsForRepo repoMapping (Repo (repositoryName repo))) $ \(Room room) -> do
-        sendReply <- sendMessage context (MatrixSendMessageRequest accessToken 1 room "Haskell hi!")
+        sendReply <- sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
         return ()
 
 main :: IO ()

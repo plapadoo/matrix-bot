@@ -4,6 +4,9 @@ module GMB.Gitlab(
   GitlabCommit,
   GitlabRepository,
   eventRepository,
+  commitMessage,
+  eventUserName,
+  eventCommits,
   repositoryName) where
 
 import Prelude()
@@ -20,6 +23,9 @@ data GitlabCommit = GitlabCommit {
     message :: Text
   } deriving(Generic)
 
+commitMessage :: GitlabCommit -> Text
+commitMessage = message
+
 data GitlabEvent = GitlabEvent {
     object_kind :: Text
   , user_name :: Maybe Text
@@ -27,8 +33,14 @@ data GitlabEvent = GitlabEvent {
   , commits :: Maybe [GitlabCommit]
   } deriving(Generic)
 
+eventCommits :: GitlabEvent -> Maybe [GitlabCommit]
+eventCommits = commits
+
 eventRepository :: GitlabEvent -> Maybe GitlabRepository
 eventRepository = repository
+
+eventUserName :: GitlabEvent -> Maybe Text
+eventUserName = user_name
 
 repositoryName :: GitlabRepository -> Text
 repositoryName = name

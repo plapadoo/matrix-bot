@@ -96,15 +96,19 @@ data MatrixSendMessageRequest = MatrixSendMessageRequest {
   , _msmTxnId       :: Int
   , _msmRoomId      :: Text.Text
   , _msmMessage     :: Text.Text
+  , _msmFormattedMessage     :: Text.Text
   }
 
 instance ToJSON MatrixSendMessageRequest where
-  toJSON (MatrixSendMessageRequest _ _ _ message) =
-    let msgtype = "m.text" :: Text.Text
+  toJSON (MatrixSendMessageRequest _ _ _ message formatted_message) =
+    let msgtype = "m.notice" :: Text.Text
+        format = "org.matrix.custom.html" :: Text.Text
     in
       object [
-        "msgtype" .= msgtype,
-        "body" .= message
+          "msgtype" .= msgtype
+        , "format" .= format
+        , "body" .= message
+        , "formatted_body" .= formatted_message
         ]
 
 makeLenses ''MatrixSendMessageRequest
