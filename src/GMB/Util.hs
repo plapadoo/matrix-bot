@@ -1,5 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
-module GMB.Util(putLog,forceEither,textShow,surround,surroundHtml) where
+module GMB.Util(
+    putLog
+  , forceEither
+  , textShow
+  , surround
+  , surroundHtml
+  , surroundQuotes) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Either            (Either (..))
@@ -31,6 +37,9 @@ surround before after inside = before <> inside <> after
 
 surroundHtml :: Text -> Text -> Text
 surroundHtml tagName inside = "<" <> tagName <> ">" <> inside <> "</" <> tagName <> ">"
+
+surroundQuotes :: Text -> Text
+surroundQuotes = surround "“" "”"
 
 forceEither :: Show e => Either e a -> a
 forceEither (Left e)  = error (show e)

@@ -2,7 +2,7 @@
 module Main where
 
 import           Control.Lens       (to, (^.))
-import           Control.Monad      (forM_, return)
+import           Control.Monad      (forM_, return, void)
 import           Data.Foldable      (fold, foldMap)
 import           Data.Function      (id, ($), (.))
 import           Data.Functor       ((<$>))
@@ -16,8 +16,10 @@ import           GMB.ConfigOptions  (coGitlabListenPort, coLogFile,
                                      coMappingsFile, coMatrixBasePath,
                                      coMatrixPassword, coMatrixUserName,
                                      readConfigOptions)
-import           GMB.Gitlab         (GitlabEvent, commitMessage,eventCommits, eventRepository,
-                                     eventUserName, repositoryName)
+import           GMB.Gitlab         (GitlabEvent, objectNote,objectTitle,objectUrl,commitMessage, eventCommits,
+                                     eventObjectAttributes, eventObjectKind,
+                                     eventRepository, eventUserName,
+                                     repositoryName)
 import           GMB.Matrix         (MatrixContext (..), MatrixJoinRequest (..),
                                      MatrixLoginRequest (..),
                                      MatrixSendMessageRequest (..), joinRoom,
@@ -27,7 +29,8 @@ import           GMB.Matrix         (MatrixContext (..), MatrixJoinRequest (..),
 import           GMB.ProgramOptions (poConfigFile, readProgramOptions)
 import           GMB.RepoMapping    (Repo (..), RepoMapping, Room (..),
                                      readRepoMapping, rooms, roomsForRepo)
-import           GMB.Util           (forceEither, putLog, textShow,surround,surroundHtml)
+import           GMB.Util           (forceEither, putLog, surroundHtml,
+                                     surroundQuotes, textShow)
 import           GMB.WebServer      (ServerData (..), webServer)
 import           Prelude            (error, undefined)
 import           System.IO          (IO)
@@ -35,18 +38,36 @@ import           System.IO          (IO)
 callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
 callback context accessToken repoMapping event = do
   putLog (context ^. mcLogFile) $ "repo mapping: " <> textShow repoMapping
-  case (eventRepository event) of
-    Nothing -> do
-      putLog (context ^. mcLogFile) $ "got event without repository, not continuing"
-    Just repo -> do
+  case eventObjectKind event of
+    "push" -> do
+      let repo = fromJust (eventRepository event)
       let commitCount = maybe "0" textShow (length <$> (eventCommits event))
       let userName = fold (eventUserName event)
-      let commits = fold ((Text.intercalate ", " . ((surround "“" "”" . Text.strip . commitMessage) <$>)) <$> eventCommits event)
+      let commits = fold ((Text.intercalate ", " . ((surroundQuotes . Text.strip . commitMessage) <$>)) <$> eventCommits event)
       let message = userName <> " pushed " <> commitCount <> " commit(s) to " <> repositoryName repo <> ": " <> commits
       let formattedMessage = (surroundHtml "strong" userName) <> " pushed " <> commitCount <> " commit(s) to " <> surroundHtml "strong" (repositoryName repo) <> ": " <> commits
-      forM_ (roomsForRepo repoMapping (Repo (repositoryName repo))) $ \(Room room) -> do
-        sendReply <- sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
-        return ()
+      forM_ (roomsForRepo repoMapping (Repo (repositoryName repo))) $ \(Room room) ->
+        void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
+    "issue" -> do
+      let repo = fromJust (eventRepository event)
+      let userName = fold (eventUserName event)
+      let attributes = fromJust (eventObjectAttributes event)
+      let message = userName <> " added issue " <> (surroundQuotes (objectTitle attributes)) <> " to " <> repositoryName repo
+      let issueLink = "<a href=\"" <> (objectUrl attributes) <> "\">" <> (surroundQuotes (objectTitle attributes)) <> "</a>"
+      let formattedMessage = (surroundHtml "strong" userName) <> " added issue " <> issueLink <> " to " <> surroundHtml "strong" (repositoryName repo)
+      forM_ (roomsForRepo repoMapping (Repo (repositoryName repo))) $ \(Room room) ->
+        void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
+    "note" -> do
+      let repo = fromJust (eventRepository event)
+      let userName = fold (eventUserName event)
+      let attributes = fromJust (eventObjectAttributes event)
+      let message = userName <> " commented " <> (surroundQuotes (objectNote attributes)) <> " to " <> repositoryName repo
+      let issueLink = "<a href=\"" <> (objectUrl attributes) <> "\">" <> (surroundQuotes (objectNote attributes)) <> "</a>"
+      let formattedMessage = (surroundHtml "strong" userName) <> " commented " <> issueLink <> " to " <> surroundHtml "strong" (repositoryName repo)
+      forM_ (roomsForRepo repoMapping (Repo (repositoryName repo))) $ \(Room room) ->
+        void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
+    unknown ->
+      putLog (context ^. mcLogFile) $ "got event without repository, not continuing"
 
 main :: IO ()
 main = do
