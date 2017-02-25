@@ -2,7 +2,7 @@
 module Main where
 
 import           Control.Lens       (to, (^.))
-import           Control.Monad      (forM_, return, void)
+import           Control.Monad      (forM_, return, void,forM)
 import           Data.Foldable      (fold, foldMap, for_)
 import           Data.Function      (id, ($), (.))
 import           Data.Functor       ((<$>))
@@ -22,7 +22,7 @@ import           GMB.Gitlab         (GitlabEvent, commitMessage, eventCommits,
                                      eventRepository, eventUserName,
                                      eventUserUserName, objectNote, objectTitle,
                                      objectUrl, repositoryName)
-import           GMB.INotify        (Event (..), watchDirectoryRecursive)
+import           GMB.INotify        (Event (..), watchDirectoryRecursive,stopWatch)
 import           GMB.Matrix         (MatrixContext (..), MatrixJoinRequest (..),
                                      MatrixLoginRequest (..),
                                      MatrixSendMessageRequest (..), joinRoom,
@@ -93,7 +93,7 @@ main = do
           Nothing -> putLog (configOptions ^. coLogFile) $ "Join " <> room <> " success"
           Just e  -> error $ "join failed: " <> (Text.unpack e)
       putLog (configOptions ^. coLogFile) $ "All rooms joined"
-      forM_ (roomToDirs repoMapping) $ \((Room room),(Directory dir)) -> do
+      monitors <- forM (roomToDirs repoMapping) $ \((Room room),(Directory dir)) ->
         watchDirectoryRecursive (Text.unpack dir) $ \path event -> do
           let message =
                 case event of
@@ -109,4 +109,5 @@ main = do
       for_ (configOptions ^. coGitlabListenPort) $ \listenPort -> do
         putLog (configOptions ^. coLogFile) $ "Listening on " <> (textShow listenPort)
         webServer listenPort (ServerData (callback context accessToken repoMapping))
+      forM_ monitors stopWatch
     Just e -> error $ "login failed: " <> (Text.unpack e)
