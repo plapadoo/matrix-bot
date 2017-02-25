@@ -2,9 +2,12 @@
 module GMB.RepoMapping(
     RepoMapping
   , readRepoMapping
+  , RoomEntity(..)
   , Room(..)
+  , Directory(..)
   , Repo(..)
-  , roomsForRepo
+  , roomsForEntity
+  , roomToDirs
   , rooms) where
 
 import           Control.Applicative    ((*>), (<*), (<*>))
@@ -13,17 +16,17 @@ import           Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Attoparsec.Text   as Atto
 import           Data.Either            (Either)
 import           Data.Eq                ((/=), (==),Eq)
-import           Data.Foldable          (foldMap)
+import           Data.Foldable          (foldMap,concatMap)
 import           Data.Functor           ((<$>))
 import Data.Char(Char)
-import Data.Bool(Bool,(||))
+import Data.Bool(Bool,(||),otherwise)
 import Data.Function((.))
 import           Data.Map               (Map, keys,singleton,toList)
 import           Data.Ord               (Ord)
 import Data.List(filter)
 import Data.Tuple(fst,snd)
 import           Data.String            (String)
-import           Data.Text              (Text)
+import           Data.Text              (Text,isPrefixOf,drop)
 import           Data.Text.IO           (readFile)
 import           Prelude                (undefined)
 import           System.FilePath(FilePath)
@@ -33,21 +36,31 @@ data Room = Room Text deriving(Ord,Eq,Show)
 
 data Repo = Repo Text deriving(Ord,Eq,Show)
 
-type RepoMapping = Map Room [Repo]
+data Directory = Directory Text deriving(Ord,Eq,Show)
+
+data RoomEntity = RoomToRepo Repo | RoomToDirectory Directory deriving(Eq,Show)
+
+type RepoMapping = Map Room [RoomEntity]
 
 rooms :: RepoMapping -> [Room]
 rooms rm = keys rm
 
-repoMappingToList :: RepoMapping -> [(Room,Repo)]
+repoMappingToList :: RepoMapping -> [(Room,RoomEntity)]
 repoMappingToList rm = [ (room,repo) | (room,repos) <- toList rm,repo <- repos ]
 
-roomsForRepo :: RepoMapping -> Repo -> [Room]
-roomsForRepo rm repo = fst <$> (filter ((==repo) . snd) (repoMappingToList rm))
+roomsForEntity :: RepoMapping -> RoomEntity -> [Room]
+roomsForEntity rm repo = fst <$> (filter ((==repo) . snd) (repoMappingToList rm))
+
+roomToDirs :: RepoMapping -> [(Room,Directory)]
+roomToDirs rm = concatMap (\(room,entity) -> case entity of RoomToDirectory dir -> [(room,dir)]; _ -> []) (repoMappingToList rm)
 
 data RepoMappingLine = RepoMappingLine Text [Text]
 
+repoOrDir text | "@" `isPrefixOf` text = RoomToDirectory (Directory (drop 1 text))
+               | otherwise = RoomToRepo (Repo text)
+
 linesToMapping :: [RepoMappingLine] -> RepoMapping
-linesToMapping = foldMap (\(RepoMappingLine key values) -> singleton (Room key) (Repo <$> values))
+linesToMapping = foldMap (\(RepoMappingLine key values) -> singleton (Room key) (repoOrDir <$> values))
 
 isSpace :: Char -> Bool
 isSpace c = c == ' ' || c == '\t'

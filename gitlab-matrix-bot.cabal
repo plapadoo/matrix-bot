@@ -31,6 +31,8 @@ executable gitlab-matrix-bot
                      , optparse-applicative
                      , text
                      , containers
+                     , hinotify
+                     , directory
                      , configurator
                      , scotty
                      , mtl
