@@ -33,6 +33,8 @@ executable gitlab-matrix-bot
                      , containers
                      , hinotify
                      , directory
+                     , stm
+                     , monad-loops
                      , configurator
                      , scotty
                      , mtl

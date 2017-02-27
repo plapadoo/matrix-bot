@@ -3,26 +3,40 @@ module GMB.INotify(
   , recursiveSubdirs
   , stopWatch
   , Monitor
+  , watchRecursiveBuffering
+  , unbuffer
+  , NotifyEvent(..)
   , Event(..)) where
 
-import System.INotify(initINotify,killINotify,INotify,addWatch,EventVariety(AllEvents),Event(..))
-import Data.Monoid((<>))
-import Data.Function(($),(.))
-import Prelude(undefined)
-import Text.Show(show)
-import System.FilePath(FilePath,(</>))
-import Data.Bool(Bool(..))
-import Control.Concurrent.Chan(Chan,newChan,writeChan,readChan)
-import Control.Concurrent(forkIO)
-import Control.Monad(void,return,(>>=),forM,forM_,filterM,liftM,(>>))
-import Control.Monad.IO.Class(MonadIO,liftIO)
-import System.IO(IO,print,putStrLn)
-import System.Directory(listDirectory,doesDirectoryExist)
-import Data.List(filter,concat)
-import Data.Functor((<$>))
+import Data.Maybe(Maybe(..))
+import           Control.Concurrent           (threadDelay)
+import Control.Monad.Loops(unfoldM)
+import           Control.Concurrent           (forkIO)
+import           Control.Concurrent.Chan      (Chan, newChan, readChan,
+                                               writeChan)
+import           Control.Concurrent.STM.TChan (TChan, newTChanIO, writeTChan,tryReadTChan)
+import           Control.Monad                (filterM, forM, forM_, forever,
+                                               liftM, return, void, (>>), (>>=))
+import           Control.Monad.IO.Class       (MonadIO, liftIO)
+import           Control.Monad.STM            (atomically,STM)
+import           Data.Bool                    (Bool (..))
+import           Data.Function                (($), (.))
+import           Data.Functor                 ((<$>))
+import           Data.List                    (concat, filter)
+import           Data.Monoid                  ((<>))
+import           Prelude                      (undefined, (*))
+import           System.Directory             (doesDirectoryExist,
+                                               listDirectory)
+import           System.FilePath              (FilePath, (</>))
+import           System.INotify               (Event (..),
+                                               EventVariety (AllEvents),
+                                               INotify, addWatch, initINotify,
+                                               killINotify)
+import           System.IO                    (IO, print, putStrLn)
+import           Text.Show                    (show)
 
 data Monitor = Monitor {
-    monitorStop :: Chan ()
+    monitorStop    :: Chan ()
   , monitorStopped :: Chan ()
   }
 
@@ -38,25 +52,27 @@ recursiveSubdirs dir = do
     subdirs <- recursiveSubdirs innerDir
     return (innerDir : subdirs)
 
-watchDirectoryRecursive' :: MonadIO m => INotify -> FilePath -> (FilePath -> Event -> IO ()) -> m ()
+data NotifyEvent = NotifyEvent FilePath Event
+
+watchDirectoryRecursive' :: MonadIO m => INotify -> FilePath -> (NotifyEvent -> IO ()) -> m ()
 watchDirectoryRecursive' inotify fp cb = do
   subDirs <- recursiveSubdirs fp
   forM_ (fp : subDirs) $ \dir -> do
     liftIO $ putStrLn $ "Watching directory: " <> dir
-    liftIO $ void $ addWatch inotify [AllEvents] dir (cb dir)
+    liftIO $ void $ addWatch inotify [AllEvents] dir (\event -> cb (NotifyEvent dir event))
 
-watchDirectoryRecursive :: MonadIO m => FilePath -> (FilePath -> Event -> IO ()) -> m Monitor
+watchDirectoryRecursive :: MonadIO m => FilePath -> (NotifyEvent -> IO ()) -> m Monitor
 watchDirectoryRecursive fp cb = do
   inotify <- liftIO $ initINotify
   stopChan <- liftIO newChan
   stoppedChan <- liftIO newChan
-  let innerCb filePath event =
+  let innerCb (NotifyEvent filePath event) =
         case event of
           Created True path -> do
             liftIO $ putStrLn $ "directory was created:" <> (filePath </> path)
             watchDirectoryRecursive' inotify (filePath </> path) innerCb
-            cb (filePath </> path) event
-          _ -> cb filePath event
+            cb $ NotifyEvent (filePath </> path) event
+          _ -> cb $ NotifyEvent filePath event
   liftIO $ void $ forkIO $ do
     watchDirectoryRecursive' inotify fp innerCb
     liftIO $ putStrLn "waiting"
@@ -70,3 +86,17 @@ stopWatch m = do
   liftIO $ writeChan (monitorStop m) ()
   liftIO $ void $ readChan (monitorStopped m)
 
+
+data RecursiveWatcher = RecursiveWatcher (TChan NotifyEvent)
+
+watchRecursiveBuffering :: MonadIO m => FilePath -> m RecursiveWatcher
+watchRecursiveBuffering fb = do
+  chan <- liftIO newTChanIO
+  watchDirectoryRecursive fb (\e -> atomically (writeTChan chan e))
+  return (RecursiveWatcher chan)
+
+unbuffer :: MonadIO m => RecursiveWatcher -> ([NotifyEvent] -> IO ()) -> m ()
+unbuffer (RecursiveWatcher tchan) cb = forever $ do
+  liftIO $ threadDelay (5000 * 1000)
+  packet <- liftIO $ atomically (unfoldM (tryReadTChan tchan))
+  liftIO $ cb packet
