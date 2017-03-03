@@ -33,6 +33,8 @@ executable gitlab-matrix-bot
                      , containers
                      , hinotify
                      , directory
+                     , bytestring
+                     , cryptonite
                      , stm
                      , monad-loops
                      , configurator

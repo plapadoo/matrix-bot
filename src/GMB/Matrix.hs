@@ -93,7 +93,7 @@ makeLenses ''MatrixJoinReply
 
 data MatrixSendMessageRequest = MatrixSendMessageRequest {
     _msmAccessToken :: Text.Text
-  , _msmTxnId       :: Int
+  , _msmTxnId       :: Text.Text
   , _msmRoomId      :: Text.Text
   , _msmMessage     :: Text.Text
   , _msmFormattedMessage     :: Text.Text
@@ -142,5 +142,5 @@ joinRoom context request =
 
 sendMessage :: MonadIO m => MatrixContext -> MatrixSendMessageRequest -> m MatrixSendMessageReply
 sendMessage context request =
-  let url = ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. msmRoomId) <> "/send/m.room.message/" <> (request ^. msmTxnId . to (Text.pack . show)) <> "?access_token=" <> (request ^. msmAccessToken))
+  let url = ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. msmRoomId) <> "/send/m.room.message/" <> (request ^. msmTxnId) <> "?access_token=" <> (request ^. msmAccessToken))
   in view hresContent <$> (jsonHttpRequest (context ^. mcLogFile) (HttpRequest url HttpMethodPut "application/json" request))

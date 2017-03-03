@@ -5,21 +5,28 @@ module GMB.Util(
   , textShow
   , surround
   , surroundHtml
-  , surroundQuotes) where
+  , surroundQuotes
+  , textHashAsText) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Crypto.Hash            (Digest, SHA3_512, hash, hashlazy)
+import           Data.ByteString        (ByteString)
 import           Data.Either            (Either (..))
 import           Data.Eq                ((==))
 import           Data.Function          ((.))
 import           Data.Functor           ((<$>))
-import           Data.Monoid            ((<>),Monoid)
+import           Data.Monoid            (Monoid, (<>))
 import           Data.Text              (Text, pack, unpack)
+import           Data.Text.Encoding     (decodeUtf8, encodeUtf8)
 import           Data.Text.IO           (appendFile, putStr)
 import           Data.Time.Clock        (getCurrentTime)
 import           Data.Time.ISO8601      (formatISO8601Millis)
 import           Prelude                (error)
 import           System.FilePath        (FilePath)
 import           Text.Show              (Show, show)
+
+textHashAsText :: Text -> Text
+textHashAsText = pack . show . (hash :: ByteString -> Digest SHA3_512) . encodeUtf8
 
 putLog :: MonadIO m => FilePath -> Text -> m ()
 putLog logFile str = do

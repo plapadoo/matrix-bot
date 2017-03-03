@@ -1,47 +1,61 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Control.Lens       (to, (^.))
-import           Control.Monad      (forM_, return, void,forM)
-import           Data.Foldable      (fold, foldMap, for_)
-import           Data.Function      (id, ($), (.))
-import           Data.Functor       ((<$>))
-import           Data.Int           (Int)
-import           Data.List          (length,take)
-import           Data.Maybe         (Maybe (..),catMaybes)
-import Control.Concurrent.STM.TChan(newTChanIO,writeTChan,tryReadTChan)
-import           Data.Maybe         (fromJust, maybe)
-import           Data.Monoid        (mempty, (<>))
-import qualified Data.Text          as Text
-import           Data.Text.IO       (putStrLn)
-import           GMB.ConfigOptions  (coGitlabListenPort, coLogFile,
-                                     coMappingsFile, coMatrixBasePath,
-                                     coMatrixPassword, coMatrixUserName,
-                                     readConfigOptions)
-import           GMB.Gitlab         (GitlabEvent, commitMessage, eventCommits,
-                                     eventObjectAttributes, eventObjectKind,
-                                     eventRepository, eventUserName,
-                                     eventUserUserName, objectNote, objectTitle,
-                                     objectUrl, repositoryName)
-import           GMB.INotify        (Event (..), watchRecursiveBuffering,unbuffer,stopWatch,NotifyEvent(..))
-import           GMB.Matrix         (MatrixContext (..), MatrixJoinRequest (..),
-                                     MatrixLoginRequest (..),
-                                     MatrixSendMessageRequest (..), joinRoom,
-                                     login, mcLogFile, mjrpError,
-                                     mlrpAccessToken, mlrpErrCode, mlrpError,
-                                     sendMessage)
-import           GMB.ProgramOptions (poConfigFile, readProgramOptions)
-import           GMB.RepoMapping    (Directory (..), Repo (..), RepoMapping,
-                                     Room (..), RoomEntity (..),
-                                     readRepoMapping, roomToDirs, rooms,
-                                     roomsForEntity)
-import           GMB.Util           (forceEither, putLog, surroundHtml,
-                                     surroundQuotes, textShow)
-import           GMB.WebServer      (ServerData (..), webServer)
-import Data.Ord((>=))
-import           Prelude            (error, undefined)
-import           System.FilePath    ((</>))
-import           System.IO          (IO)
+import           Control.Concurrent.STM.TChan (newTChanIO, tryReadTChan,
+                                               writeTChan)
+import           Control.Lens                 (to, (^.))
+import           Control.Monad                (forM, forM_, return, void)
+import           Data.Foldable                (fold, foldMap, for_)
+import           Data.Function                (id, ($), (.))
+import           Data.Functor                 ((<$>))
+import           Data.Int                     (Int)
+import           Data.List                    (length, take)
+import           Data.Maybe                   (Maybe (..), catMaybes)
+import           Data.Maybe                   (fromJust, maybe)
+import           Data.Monoid                  (mempty, (<>))
+import           Data.Ord                     ((>=))
+import qualified Data.Text                    as Text
+import           Data.Text.Encoding           (encodeUtf8)
+import           Data.Text.IO                 (putStrLn)
+import           GMB.ConfigOptions            (coGitlabListenPort, coLogFile,
+                                               coMappingsFile, coMatrixBasePath,
+                                               coMatrixPassword,
+                                               coMatrixUserName,
+                                               readConfigOptions)
+import           GMB.Gitlab                   (GitlabEvent, commitMessage,
+                                               eventCommits,
+                                               eventObjectAttributes,
+                                               eventObjectKind, eventRepository,
+                                               eventUserName, eventUserUserName,
+                                               objectNote, objectTitle,
+                                               objectUrl, repositoryName)
+import           GMB.INotify                  (Event (..), NotifyEvent (..),
+                                               stopWatch, unbuffer,
+                                               watchRecursiveBuffering)
+import           GMB.Matrix                   (MatrixContext (..),
+                                               MatrixJoinRequest (..),
+                                               MatrixLoginRequest (..),
+                                               MatrixSendMessageRequest (..),
+                                               joinRoom, login, mcLogFile,
+                                               mjrpError, mlrpAccessToken,
+                                               mlrpErrCode, mlrpError,
+                                               sendMessage)
+import           GMB.ProgramOptions           (poConfigFile, readProgramOptions)
+import           GMB.RepoMapping              (Directory (..), Repo (..),
+                                               RepoMapping, Room (..),
+                                               RoomEntity (..), readRepoMapping,
+                                               roomToDirs, rooms,
+                                               roomsForEntity)
+import           GMB.Util                     (forceEither, putLog,
+                                               surroundHtml, surroundQuotes,
+                                               textHashAsText, textShow)
+import           GMB.WebServer                (ServerData (..), webServer)
+import           Prelude                      (error, undefined)
+import           System.FilePath              ((</>))
+import           System.IO                    (IO)
+
+messageTxnId :: Text.Text -> Text.Text -> Text.Text
+messageTxnId accessToken message = textHashAsText (accessToken <> message)
 
 callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
 callback context accessToken repoMapping event = do
@@ -54,7 +68,7 @@ callback context accessToken repoMapping event = do
       let message = userName <> " pushed " <> commitCount <> " commit(s) to " <> repositoryName repo <> ": " <> commits
       let formattedMessage = (surroundHtml "strong" userName) <> " pushed " <> commitCount <> " commit(s) to " <> surroundHtml "strong" (repositoryName repo) <> ": " <> commits
       forM_ (roomsForEntity repoMapping (RoomToRepo (Repo (repositoryName repo)))) $ \(Room room) ->
-        void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
+        void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken message) room message formattedMessage)
     "issue" -> do
       let repo = fromJust (eventRepository event)
       let userName = fold (eventUserUserName event)
@@ -63,7 +77,7 @@ callback context accessToken repoMapping event = do
       let issueLink = "<a href=\"" <> (objectUrl attributes) <> "\">" <> (surroundQuotes . fromJust . objectTitle $ attributes) <> "</a>"
       let formattedMessage = (surroundHtml "strong" userName) <> " added issue " <> issueLink <> " to " <> surroundHtml "strong" (repositoryName repo)
       forM_ (roomsForEntity repoMapping (RoomToRepo (Repo (repositoryName repo)))) $ \(Room room) ->
-        void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
+        void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken message) room message formattedMessage)
     "note" -> do
       let repo = fromJust (eventRepository event)
       let userName = fold (eventUserUserName event)
@@ -72,7 +86,7 @@ callback context accessToken repoMapping event = do
       let issueLink = "<a href=\"" <> (objectUrl attributes) <> "\">" <> (surroundQuotes . fromJust . objectNote $ attributes) <> "</a>"
       let formattedMessage = (surroundHtml "strong" userName) <> " commented " <> issueLink <> " to " <> surroundHtml "strong" (repositoryName repo)
       forM_ (roomsForEntity repoMapping (RoomToRepo (Repo (repositoryName repo)))) $ \(Room room) ->
-        void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room message formattedMessage)
+        void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken message) room message formattedMessage)
     unknown ->
       putLog (context ^. mcLogFile) $ "got event without repository, not continuing"
 
@@ -108,7 +122,7 @@ applyMonitors logFile accessToken repoMapping context = do
                 if length xs >= lengthLimit
                   then textShow (length xs) <> " change(s), showing first " <> textShow lengthLimit <> ": " <> formatMessages (take lengthLimit xs)
                   else textShow (length xs) <> " change(s): " <> formatMessages xs
-          void $ sendMessage context (MatrixSendMessageRequest accessToken 1 room wholeMessage wholeMessage)
+          void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken wholeMessage) room wholeMessage wholeMessage)
 
 main :: IO ()
 main = do
