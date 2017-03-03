@@ -9,18 +9,19 @@ module GMB.Gitlab(
   eventUserName,
   eventUserUserName,
   objectTitle,
+  objectState,
   objectNote,
   objectUrl,
   eventObjectKind,
   eventCommits,
   repositoryName) where
 
-import Prelude()
-import GHC.Generics(Generic)
-import Data.Maybe(Maybe)
-import Data.Text(Text)
-import Data.Functor((<$>))
-import Data.Aeson(FromJSON)
+import           Data.Aeson   (FromJSON)
+import           Data.Functor ((<$>))
+import           Data.Maybe   (Maybe)
+import           Data.Text    (Text)
+import           GHC.Generics (Generic)
+import           Prelude      ()
 
 data GitlabRepository = GitlabRepository {
     name :: Text
@@ -35,12 +36,16 @@ commitMessage = message
 
 data GitlabObjectAttributes = GitlabObjectAttributes {
     title :: Maybe Text
-  , url :: Text
-  , note :: Maybe Text
+  , url   :: Text
+  , note  :: Maybe Text
+  , state :: Maybe Text
   } deriving(Generic)
 
 objectTitle :: GitlabObjectAttributes -> Maybe Text
 objectTitle = title
+
+objectState :: GitlabObjectAttributes -> Maybe Text
+objectState = state
 
 objectNote :: GitlabObjectAttributes -> Maybe Text
 objectNote = note
@@ -53,11 +58,11 @@ data GitlabUser = GitlabUser {
   } deriving(Generic)
 
 data GitlabEvent = GitlabEvent {
-    object_kind :: Text
-  , user :: Maybe GitlabUser
-  , user_name :: Maybe Text
-  , repository :: Maybe GitlabRepository
-  , commits :: Maybe [GitlabCommit]
+    object_kind       :: Text
+  , user              :: Maybe GitlabUser
+  , user_name         :: Maybe Text
+  , repository        :: Maybe GitlabRepository
+  , commits           :: Maybe [GitlabCommit]
   , object_attributes :: Maybe GitlabObjectAttributes
   } deriving(Generic)
 
