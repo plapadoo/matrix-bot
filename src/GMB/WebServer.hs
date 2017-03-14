@@ -24,7 +24,7 @@ data ServerData = ServerData {
 
 makeLenses ''ServerData
 
-webServer port serverData = scotty port $ do
+webServer port serverData = 
   post "/" $ do
     content <- jsonData
     liftIO ((serverData ^. sdCallback) content)

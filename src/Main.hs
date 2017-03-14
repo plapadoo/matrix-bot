@@ -5,6 +5,7 @@ import           Control.Concurrent.STM.TChan (newTChanIO, tryReadTChan,
                                                writeTChan)
 import           Control.Lens                 (to, (^.))
 import           Control.Monad                (forM, forM_, return, void)
+import Control.Applicative((*>),(<*))
 import           Data.Foldable                (fold, foldMap, for_)
 import           Data.Function                (id, ($), (.))
 import           Data.Functor                 ((<$>))
@@ -15,10 +16,16 @@ import           Data.Maybe                   (fromJust, maybe)
 import           Data.Monoid                  (mempty, (<>))
 import           Data.Ord                     ((>=))
 import qualified Data.Text                    as Text
+import Data.Text.Lazy(toStrict)
 import           Data.Text.Encoding           (encodeUtf8)
+import           Data.Text.Lazy.Encoding           (decodeUtf8)
 import           Data.Text.IO                 (putStrLn)
-import           GMB.ConfigOptions            (coGitlabListenPort, coLogFile,
-                                               coMappingsFile, coMatrixBasePath,
+import Data.Bool(otherwise)
+import           Web.Scotty             (body,
+                                         param, post,
+                                         scotty, setHeader, status, text)
+import           GMB.ConfigOptions            (coListenPort, coLogFile,
+                                               coMatrixBasePath,
                                                coMatrixPassword,
                                                coMatrixUserName,
                                                readConfigOptions)
@@ -52,6 +59,8 @@ import           GMB.Util                     (forceEither, putLog,
                                                textHashAsText, textShow)
 import           GMB.WebServer                (ServerData (..), webServer)
 import           Prelude                      (error, undefined)
+import Data.Either(Either)
+import Data.String(String)
 import           System.FilePath              ((</>))
 import           System.IO                    (IO)
 
@@ -124,25 +133,33 @@ applyMonitors logFile accessToken repoMapping context = do
                 if length xs >= lengthLimit
                   then textShow (length xs) <> " change(s), showing first " <> textShow lengthLimit <> ": " <> formatMessages (take lengthLimit xs)
                   else textShow (length xs) <> " change(s): " <> formatMessages xs
-          void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken wholeMessage) room wholeMessage wholeMessage)
+          void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken wholeMessage) room wholeMessage) wholeMessage
+
+data IncomingMessageBody = BodyWithMarkup Text.Text Text.Text
+                         | BodyWithoutMakrup Text.Text
+
+parseMessageBody :: Text.Text -> Either String IncomingMessageBody
+parseMessageBody mb | "<body>" `Text.isPrefixOf` mb && "</body>" `Text.isSuffixOf` mb = 
+  Atto.parseOnly (Atto.string "<body>" *>  <* Atto.string "</body>") mb
 
 main :: IO ()
 main = do
   options <- readProgramOptions
   configOptions <- readConfigOptions (options ^. poConfigFile)
   let logFile = configOptions ^. coLogFile
-  let context = MatrixContext (configOptions ^. coMatrixBasePath) (configOptions ^. coLogFile)
-  repoMapping <- forceEither <$> readRepoMapping (configOptions ^. coMappingsFile)
-  putLog logFile $ "repo mapping: " <> textShow repoMapping
+      context = MatrixContext (configOptions ^. coMatrixBasePath) (configOptions ^. coLogFile)
   putLog logFile $ "Logging in..."
   loginReply <- login context (MatrixLoginRequest (configOptions ^. coMatrixUserName) (configOptions ^. coMatrixPassword))
   case loginReply ^. mlrpError of
     Nothing -> do
       putLog logFile $ "Login successful..."
       let accessToken = loginReply ^. mlrpAccessToken . to fromJust
-      joinRooms logFile accessToken repoMapping context
-      applyMonitors logFile accessToken repoMapping context
-      for_ (configOptions ^. coGitlabListenPort) $ \listenPort -> do
-        putLog logFile $ "Listening on " <> (textShow listenPort)
-        webServer listenPort (ServerData (callback context accessToken repoMapping))
+          listenPort = configOptions ^. coListenPort
+      putLog logFile $ "Listening on " <> (textShow listenPort)
+      scotty listenPort $ do
+        post "/:channel" $ do
+          channel <- toStrict <$> param "channel"
+          wholeBody <- decodeUtf8 <$> body
+          
+          text "lol"
     Just e -> error $ "login failed: " <> (Text.unpack e)
