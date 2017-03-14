@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import           Network.HTTP.Types.Status     (badRequest400)
 import           Control.Concurrent.STM.TChan (newTChanIO, tryReadTChan,
                                                writeTChan)
 import           Control.Lens                 (to, (^.))
@@ -16,7 +17,7 @@ import           Data.Maybe                   (fromJust, maybe)
 import           Data.Monoid                  (mempty, (<>))
 import           Data.Ord                     ((>=))
 import qualified Data.Text                    as Text
-import Data.Text.Lazy(toStrict)
+import Data.Text.Lazy(toStrict,fromStrict)
 import           Data.Text.Encoding           (encodeUtf8)
 import           Data.Text.Lazy.Encoding           (decodeUtf8)
 import           Data.Text.IO                 (putStrLn)
@@ -54,7 +55,7 @@ import           GMB.RepoMapping              (Directory (..), Repo (..),
                                                RoomEntity (..), readRepoMapping,
                                                roomToDirs, rooms,
                                                roomsForEntity)
-import           GMB.Util                     (forceEither, putLog,
+import           GMB.Util                     (forceEither, putLog,breakOnMaybe,
                                                surroundHtml, surroundQuotes,
                                                textHashAsText, textShow)
 import           GMB.WebServer                (ServerData (..), webServer)
@@ -67,6 +68,7 @@ import           System.IO                    (IO)
 messageTxnId :: Text.Text -> Text.Text -> Text.Text
 messageTxnId accessToken message = textHashAsText (accessToken <> message)
 
+{-
 callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
 callback context accessToken repoMapping event = do
   case eventObjectKind event of
@@ -134,13 +136,25 @@ applyMonitors logFile accessToken repoMapping context = do
                   then textShow (length xs) <> " change(s), showing first " <> textShow lengthLimit <> ": " <> formatMessages (take lengthLimit xs)
                   else textShow (length xs) <> " change(s): " <> formatMessages xs
           void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken wholeMessage) room wholeMessage) wholeMessage
+-}
 
 data IncomingMessageBody = BodyWithMarkup Text.Text Text.Text
-                         | BodyWithoutMakrup Text.Text
+                         | BodyWithoutMarkup Text.Text
 
-parseMessageBody :: Text.Text -> Either String IncomingMessageBody
-parseMessageBody mb | "<body>" `Text.isPrefixOf` mb && "</body>" `Text.isSuffixOf` mb = 
-  Atto.parseOnly (Atto.string "<body>" *>  <* Atto.string "</body>") mb
+parseMessageBody :: Text.Text -> IncomingMessageBody
+parseMessageBody mb =
+  case breakOnMaybe "<body>" mb of
+    Nothing -> BodyWithoutMarkup mb
+    Just (_,bodyText) ->
+      case breakOnMaybe "</body>" bodyText of
+        Nothing -> BodyWithoutMarkup mb
+        Just (bodyTextTillEnd,bodyEnd) -> BodyWithMarkup (Text.drop 6 bodyTextTillEnd) (Text.drop 7 bodyEnd)
+
+plainBody :: IncomingMessageBody -> Text.Text
+plainBody = undefined
+
+markupBody :: IncomingMessageBody -> Text.Text
+markupBody = undefined
 
 main :: IO ()
 main = do
@@ -157,9 +171,19 @@ main = do
           listenPort = configOptions ^. coListenPort
       putLog logFile $ "Listening on " <> (textShow listenPort)
       scotty listenPort $ do
-        post "/:channel" $ do
-          channel <- toStrict <$> param "channel"
-          wholeBody <- decodeUtf8 <$> body
-          
-          text "lol"
+        post "/:room" $ do
+          room <- toStrict <$> param "room"
+          joinReply <- joinRoom context (MatrixJoinRequest accessToken room)
+          case joinReply ^. mjrpError of
+            Nothing -> do
+              putLog logFile $ "Join " <> room <> " success"
+              wholeBody <- (parseMessageBody . toStrict . decodeUtf8) <$> body
+              text "success"
+              let plain = plainBody wholeBody
+                  markup = markupBody wholeBody
+              void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken plain) room plain markup)
+            Just e  -> do
+              putLog logFile $ "join " <> room <> " failed: " <> e
+              text $ fromStrict ("join failed: " <> e)
+              status badRequest400
     Just e -> error $ "login failed: " <> (Text.unpack e)

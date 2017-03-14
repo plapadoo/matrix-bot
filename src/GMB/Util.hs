@@ -6,6 +6,7 @@ module GMB.Util(
   , surround
   , surroundHtml
   , surroundQuotes
+  , breakOnMaybe
   , textHashAsText) where
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
@@ -15,8 +16,9 @@ import           Data.Either            (Either (..))
 import           Data.Eq                ((==))
 import           Data.Function          ((.))
 import           Data.Functor           ((<$>))
+import           Data.Maybe             (Maybe (..))
 import           Data.Monoid            (Monoid, (<>))
-import           Data.Text              (Text, pack, unpack)
+import           Data.Text              (Text, pack, unpack,breakOn)
 import           Data.Text.Encoding     (decodeUtf8, encodeUtf8)
 import           Data.Text.IO           (appendFile, putStr)
 import           Data.Time.Clock        (getCurrentTime)
@@ -51,3 +53,9 @@ surroundQuotes = surround "“" "”"
 forceEither :: Show e => Either e a -> a
 forceEither (Left e)  = error (show e)
 forceEither (Right e) = e
+
+breakOnMaybe :: Text -> Text -> Maybe (Text,Text)
+breakOnMaybe needle haystack =
+  case breakOn needle haystack of
+    (_,"") -> Nothing
+    a      -> Just a

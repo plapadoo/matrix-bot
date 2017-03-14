@@ -33,6 +33,7 @@ executable gitlab-matrix-bot
                      , containers
                      , hinotify
                      , directory
+                     , http-types
                      , bytestring
                      , cryptonite
                      , stm
