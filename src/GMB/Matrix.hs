@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TemplateHaskell   #-}
 module GMB.Matrix(
   login,
@@ -10,6 +12,7 @@ module GMB.Matrix(
   mlrpAccessToken,
   mjrpError,
   messageTxnId,
+  MonadMatrix,
   MatrixLoginRequest(..),
   MatrixLoginReply,
   MatrixJoinRequest(..),
@@ -18,9 +21,9 @@ module GMB.Matrix(
   MatrixContext(..),
   MatrixSendMessageReply) where
 
-import           Control.Applicative    ((<*>))
+import           Control.Applicative    ((<*>),Applicative)
 import           Control.Lens           (makeLenses, to, view, (&), (.~), (^.))
-import           Control.Monad          (return)
+import           Control.Monad          (return,Monad)
 import           Control.Monad.Free     (Free, liftF)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Aeson             (FromJSON (..), ToJSON (..), Value (..),
@@ -39,9 +42,10 @@ import           Data.Maybe             (Maybe)
 import           Data.Monoid            ((<>))
 import qualified Data.Text              as Text
 import           Debug.Trace            (traceShowId)
-import           GMB.Http               (HttpMethod (..), HttpRequest (..),
+import           GMB.Http               (MonadHttp,HttpMethod (..), HttpRequest (..),
                                          hresContent, jsonHttpRequest)
-import           GMB.Util               (putLog,textHashAsText)
+import           GMB.Util               (textHashAsText)
+import           GMB.MonadLog               (MonadLog(..))
 import           Prelude                (error, undefined)
 import           System.FilePath
 import           Text.Show              (show)
@@ -131,18 +135,28 @@ data MatrixContext = MatrixContext {
 
 makeLenses ''MatrixContext
 
-login :: MonadIO m => MatrixContext -> MatrixLoginRequest -> m MatrixLoginReply
-login context request =
+class MonadMatrix m where
+  login :: MatrixContext -> MatrixLoginRequest -> m MatrixLoginReply
+  joinRoom :: MatrixContext -> MatrixJoinRequest -> m MatrixJoinReply
+  sendMessage :: MatrixContext -> MatrixSendMessageRequest -> m MatrixSendMessageReply
+
+instance (Functor m,MonadHttp m) => MonadMatrix m where
+  login = loginImpl
+  joinRoom = joinRoomImpl
+  sendMessage = sendMessageImpl
+
+loginImpl :: (Functor m,MonadHttp m) => MatrixContext -> MatrixLoginRequest -> m MatrixLoginReply
+loginImpl context request =
   let url = (context ^. mcBaseUrl) <> "_matrix/client/r0/login"
   in view hresContent <$> (jsonHttpRequest (context ^. mcLogFile) (HttpRequest url HttpMethodPost "application/json" request))
 
-joinRoom :: MonadIO m => MatrixContext -> MatrixJoinRequest -> m MatrixJoinReply
-joinRoom context request =
+joinRoomImpl :: (Functor m,MonadHttp m) => MatrixContext -> MatrixJoinRequest -> m MatrixJoinReply
+joinRoomImpl context request =
   let url = (context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. mjrRoomId) <> "/join?access_token=" <> (request ^. mjrAccessToken)
   in view hresContent <$> (jsonHttpRequest (context ^. mcLogFile) (HttpRequest url HttpMethodPost "application/json" request))
 
-sendMessage :: MonadIO m => MatrixContext -> MatrixSendMessageRequest -> m MatrixSendMessageReply
-sendMessage context request =
+sendMessageImpl :: (Functor m,MonadHttp m) => MatrixContext -> MatrixSendMessageRequest -> m MatrixSendMessageReply
+sendMessageImpl context request =
   let url = ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. msmRoomId) <> "/send/m.room.message/" <> (request ^. msmTxnId) <> "?access_token=" <> (request ^. msmAccessToken))
   in view hresContent <$> (jsonHttpRequest (context ^. mcLogFile) (HttpRequest url HttpMethodPut "application/json" request))
 

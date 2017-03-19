@@ -12,8 +12,9 @@ import           GMB.Matrix         (MatrixContext (..),
                                      MatrixLoginRequest (..), login,
                                      mlrpAccessToken, mlrpError)
 import           GMB.ProgramOptions (poConfigFile, readProgramOptions)
-import           GMB.Util           (putLog, textShow)
+import           GMB.Util           (textShow)
 import           GMB.WebServer      (webServer)
+import GMB.MonadLog(putLog)
 
 {-
 callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
