@@ -9,6 +9,7 @@ module GMB.Matrix(
   mlrpError,
   mlrpAccessToken,
   mjrpError,
+  messageTxnId,
   MatrixLoginRequest(..),
   MatrixLoginReply,
   MatrixJoinRequest(..),
@@ -40,7 +41,7 @@ import qualified Data.Text              as Text
 import           Debug.Trace            (traceShowId)
 import           GMB.Http               (HttpMethod (..), HttpRequest (..),
                                          hresContent, jsonHttpRequest)
-import           GMB.Util               (putLog)
+import           GMB.Util               (putLog,textHashAsText)
 import           Prelude                (error, undefined)
 import           System.FilePath
 import           Text.Show              (show)
@@ -92,11 +93,11 @@ instance FromJSON MatrixJoinReply where
 makeLenses ''MatrixJoinReply
 
 data MatrixSendMessageRequest = MatrixSendMessageRequest {
-    _msmAccessToken :: Text.Text
-  , _msmTxnId       :: Text.Text
-  , _msmRoomId      :: Text.Text
-  , _msmMessage     :: Text.Text
-  , _msmFormattedMessage     :: Text.Text
+    _msmAccessToken      :: Text.Text
+  , _msmTxnId            :: Text.Text
+  , _msmRoomId           :: Text.Text
+  , _msmMessage          :: Text.Text
+  , _msmFormattedMessage :: Text.Text
   }
 
 instance ToJSON MatrixSendMessageRequest where
@@ -144,3 +145,6 @@ sendMessage :: MonadIO m => MatrixContext -> MatrixSendMessageRequest -> m Matri
 sendMessage context request =
   let url = ((context ^. mcBaseUrl) <> "_matrix/client/r0/rooms/" <> (request ^. msmRoomId) <> "/send/m.room.message/" <> (request ^. msmTxnId) <> "?access_token=" <> (request ^. msmAccessToken))
   in view hresContent <$> (jsonHttpRequest (context ^. mcLogFile) (HttpRequest url HttpMethodPut "application/json" request))
+
+messageTxnId :: Text.Text -> Text.Text -> Text.Text
+messageTxnId accessToken message = textHashAsText (accessToken <> message)

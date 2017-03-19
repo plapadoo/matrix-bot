@@ -13,18 +13,18 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:  README.md
 
-executable gitlab-matrix-bot
+library
   hs-source-dirs:      src
-  main-is:             Main.hs
   default-language:    Haskell2010
-  other-modules: GMB.Http
-               , GMB.Matrix
-               , GMB.Util
-               , GMB.Gitlab
-               , GMB.WebServer
-               , GMB.ConfigOptions
-               , GMB.RepoMapping
-               , GMB.ProgramOptions
+  exposed-modules: GMB.Http
+                 , GMB.Matrix
+                 , GMB.Util
+                 , GMB.IncomingMessage
+                 , GMB.Gitlab
+                 , GMB.WebServer
+                 , GMB.ConfigOptions
+                 , GMB.RepoMapping
+                 , GMB.ProgramOptions
   build-depends:       base >= 4.7 && < 5
                      , lens
                      , filepath
@@ -49,3 +49,33 @@ executable gitlab-matrix-bot
                      , free
                      , wreq
                      
+
+executable gitlab-matrix-bot-exe
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , gitlab-matrix-bot
+                     , text
+                     , lens
+                     
+
+test-suite gitlab-matrix-bot-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , gitlab-matrix-bot
+                     , HUnit
+                     , test-framework
+                     , lens
+                     , test-framework-hunit
+                     , test-framework-th
+                     , test-framework-quickcheck2
+                     , quickcheck-instances
+                     , text
+                     , QuickCheck
+                     , monad-loops
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010

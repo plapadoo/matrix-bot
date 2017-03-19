@@ -1,72 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Network.HTTP.Types.Status     (badRequest400)
-import           Control.Concurrent.STM.TChan (newTChanIO, tryReadTChan,
-                                               writeTChan)
-import           Control.Lens                 (to, (^.))
-import           Control.Monad                (forM, forM_, return, void)
-import Control.Applicative((*>),(<*))
-import           Data.Foldable                (fold, foldMap, for_)
-import           Data.Function                (id, ($), (.))
-import           Data.Functor                 ((<$>))
-import           Data.Int                     (Int)
-import           Data.List                    (length, take)
-import           Data.Maybe                   (Maybe (..), catMaybes)
-import           Data.Maybe                   (fromJust, maybe)
-import           Data.Monoid                  (mempty, (<>))
-import           Data.Ord                     ((>=))
-import qualified Data.Text                    as Text
-import Data.Text.Lazy(toStrict,fromStrict)
-import           Data.Text.Encoding           (encodeUtf8)
-import           Data.Text.Lazy.Encoding           (decodeUtf8)
-import           Data.Text.IO                 (putStrLn)
-import Data.Bool(otherwise)
-import           Web.Scotty             (body,
-                                         param, post,
-                                         scotty, setHeader, status, text)
-import           GMB.ConfigOptions            (coListenPort, coLogFile,
-                                               coMatrixBasePath,
-                                               coMatrixPassword,
-                                               coMatrixUserName,
-                                               readConfigOptions)
-import           GMB.Gitlab                   (GitlabEvent, commitMessage,
-                                               eventCommits,
-                                               eventObjectAttributes,
-                                               eventObjectKind, eventRepository,
-                                               eventUserName, eventUserUserName,
-                                               objectNote, objectTitle,
-                                               objectState,
-                                               objectUrl, repositoryName)
-import           GMB.INotify                  (Event (..), NotifyEvent (..),
-                                               stopWatch, unbuffer,
-                                               watchRecursiveBuffering)
-import           GMB.Matrix                   (MatrixContext (..),
-                                               MatrixJoinRequest (..),
-                                               MatrixLoginRequest (..),
-                                               MatrixSendMessageRequest (..),
-                                               joinRoom, login, mcLogFile,
-                                               mjrpError, mlrpAccessToken,
-                                               mlrpErrCode, mlrpError,
-                                               sendMessage)
-import           GMB.ProgramOptions           (poConfigFile, readProgramOptions)
-import           GMB.RepoMapping              (Directory (..), Repo (..),
-                                               RepoMapping, Room (..),
-                                               RoomEntity (..), readRepoMapping,
-                                               roomToDirs, rooms,
-                                               roomsForEntity)
-import           GMB.Util                     (forceEither, putLog,breakOnMaybe,
-                                               surroundHtml, surroundQuotes,
-                                               textHashAsText, textShow)
-import           GMB.WebServer                (ServerData (..), webServer)
-import           Prelude                      (error, undefined)
-import Data.Either(Either)
-import Data.String(String)
-import           System.FilePath              ((</>))
-import           System.IO                    (IO)
-
-messageTxnId :: Text.Text -> Text.Text -> Text.Text
-messageTxnId accessToken message = textHashAsText (accessToken <> message)
+import           Control.Lens       (to, (^.))
+import           Data.Maybe         (fromJust)
+import           Data.Monoid        ((<>))
+import qualified Data.Text          as Text
+import           GMB.ConfigOptions  (coListenPort, coLogFile, coMatrixBasePath,
+                                     coMatrixPassword, coMatrixUserName,
+                                     readConfigOptions)
+import           GMB.Matrix         (MatrixContext (..),
+                                     MatrixLoginRequest (..), login,
+                                     mlrpAccessToken, mlrpError)
+import           GMB.ProgramOptions (poConfigFile, readProgramOptions)
+import           GMB.Util           (putLog, textShow)
+import           GMB.WebServer      (webServer)
 
 {-
 callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
@@ -138,24 +85,6 @@ applyMonitors logFile accessToken repoMapping context = do
           void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken wholeMessage) room wholeMessage) wholeMessage
 -}
 
-data IncomingMessageBody = BodyWithMarkup Text.Text Text.Text
-                         | BodyWithoutMarkup Text.Text
-
-parseMessageBody :: Text.Text -> IncomingMessageBody
-parseMessageBody mb =
-  case breakOnMaybe "<body>" mb of
-    Nothing -> BodyWithoutMarkup mb
-    Just (_,bodyText) ->
-      case breakOnMaybe "</body>" bodyText of
-        Nothing -> BodyWithoutMarkup mb
-        Just (bodyTextTillEnd,bodyEnd) -> BodyWithMarkup (Text.drop 6 bodyTextTillEnd) (Text.drop 7 bodyEnd)
-
-plainBody :: IncomingMessageBody -> Text.Text
-plainBody = undefined
-
-markupBody :: IncomingMessageBody -> Text.Text
-markupBody = undefined
-
 main :: IO ()
 main = do
   options <- readProgramOptions
@@ -170,20 +99,5 @@ main = do
       let accessToken = loginReply ^. mlrpAccessToken . to fromJust
           listenPort = configOptions ^. coListenPort
       putLog logFile $ "Listening on " <> (textShow listenPort)
-      scotty listenPort $ do
-        post "/:room" $ do
-          room <- toStrict <$> param "room"
-          joinReply <- joinRoom context (MatrixJoinRequest accessToken room)
-          case joinReply ^. mjrpError of
-            Nothing -> do
-              putLog logFile $ "Join " <> room <> " success"
-              wholeBody <- (parseMessageBody . toStrict . decodeUtf8) <$> body
-              text "success"
-              let plain = plainBody wholeBody
-                  markup = markupBody wholeBody
-              void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken plain) room plain markup)
-            Just e  -> do
-              putLog logFile $ "join " <> room <> " failed: " <> e
-              text $ fromStrict ("join failed: " <> e)
-              status badRequest400
+      webServer logFile listenPort context accessToken
     Just e -> error $ "login failed: " <> (Text.unpack e)
