@@ -1,10 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 module GMB.WebServer(
     webServer
   , handleMessage
   , WebServerInput(..)
-  , wsiLogFile
+  , WebServerOutput(..)
   , wsiContext
   , wsiAccessToken
   , wsiRoom
@@ -32,31 +33,39 @@ import           GMB.Matrix                (MatrixContext (..),
                                             MatrixJoinRequest (..),
                                             MatrixLoginRequest (..),
                                             MatrixSendMessageRequest (..),
-                                            MonadMatrix (..), joinRoom, login,
-                                            mcLogFile, messageTxnId, mjrpError,
+                                            MonadMatrix (..), joinRoom,
+                                            joinRoomImpl, login, loginImpl,
+                                            messageTxnId, mjrpError,
                                             mlrpAccessToken, mlrpErrCode,
-                                            mlrpError, sendMessage)
+                                            mlrpError, sendMessage,
+                                            sendMessageImpl)
 import           GMB.MonadLog              (MonadLog (..))
 import           GMB.Util                  (breakOnMaybe, forceEither,
                                             surroundHtml, surroundQuotes,
                                             textHashAsText, textShow)
-import           Network.HTTP.Types.Status (Status, badRequest400, ok200)
+import           Network.HTTP.Types.Status (Status, badRequest400, forbidden403,
+                                            ok200)
+import           Network.Wai               (Response)
+import           Network.Wai.Handler.Warp  (Port)
 import           Prelude                   ()
 import           System.FilePath           (FilePath)
 import           System.IO                 (IO)
-import           Web.Scotty                (body, param, post, scotty,
-                                            setHeader, status, text)
-import           Web.Scotty.Trans          (ActionT)
+import           Web.Scotty.Trans          (ActionT, ScottyT, body, param, post,
+                                            scottyT, setHeader, status, text)
 
 instance (Monad m,MonadHttp m) => MonadHttp (ActionT e m)
-  where jsonHttpRequest fp input = lift (jsonHttpRequest fp input)
+  where httpRequest input = lift (httpRequest input)
+
+instance (Monad m,MonadMatrix m) => MonadMatrix (ActionT e m)
+  where login context input = lift (login context input)
+        sendMessage context input = lift (sendMessage context input)
+        joinRoom context input = lift (joinRoom context input)
 
 instance (Monad m,MonadLog m) => MonadLog (ActionT e m)
-  where putLog file text = lift (putLog file text)
+  where putLog text = lift (putLog text)
 
 data WebServerInput = WebServerInput {
-    _wsiLogFile     :: FilePath
-  , _wsiContext     :: MatrixContext
+    _wsiContext     :: MatrixContext
   , _wsiAccessToken :: Text
   , _wsiRoom        :: Text
   , _wsiBody        :: ByteString
@@ -66,27 +75,30 @@ makeLenses ''WebServerInput
 
 data WebServerOutput = WebServerOutput Text Status
 
-handleMessage :: (MonadIO m,Monad m,MonadLog m,MonadHttp m,MonadMatrix m) => WebServerInput -> m WebServerOutput
+handleMessage :: (Monad m,MonadLog m,MonadMatrix m) => WebServerInput -> m WebServerOutput
 handleMessage input = do
     joinReply <- joinRoom (input ^. wsiContext) (MatrixJoinRequest (input ^. wsiAccessToken) (input ^. wsiRoom))
     case joinReply ^. mjrpError of
       Nothing -> do
-        putLog (input ^. wsiLogFile) $ "Join " <> (input ^. wsiRoom) <> " success"
+        putLog $ "Join " <> (input ^. wsiRoom) <> " success"
         let wholeBody = (parseIncomingMessage . TextLazy.toStrict . decodeUtf8) (input ^. wsiBody)
             plain = wholeBody ^. plainBody
             markup = fold (wholeBody ^. markupBody)
+        putLog $ "Sending message “" <> plain <> "”, markup “" <> markup <> "”"
         void $ sendMessage (input ^. wsiContext) (MatrixSendMessageRequest (input ^. wsiAccessToken) (messageTxnId (input ^. wsiAccessToken) plain) (input ^. wsiRoom) plain markup)
         return (WebServerOutput "success" ok200)
       Just e  -> do
-        putLog (input ^. wsiLogFile) $ "join " <> (input ^. wsiRoom) <> " failed: " <> e
-        return (WebServerOutput ("join failed: " <> e) badRequest400)
+        putLog $ "join " <> (input ^. wsiRoom) <> " failed: " <> e
+        return (WebServerOutput ("join failed: " <> e) forbidden403)
 
-webServer :: FilePath -> Int -> MatrixContext -> Text -> IO ()
-webServer logFile listenPort context accessToken =
-  scotty listenPort $
-    post "/:room" $ do
+webServer :: forall m. (MonadIO m,Monad m,MonadLog m,MonadMatrix m) => Port -> MatrixContext -> Text -> (m Response -> IO Response) -> IO ()
+webServer listenPort context accessToken downToIO =
+  scottyT listenPort downToIO (post "/:room" handler :: ScottyT TextLazy.Text m ())
+  where
+    handler :: ActionT TextLazy.Text m ()
+    handler = do
       room <- TextLazy.toStrict <$> param "room"
       b <- body
-      (WebServerOutput resultText resultStatus) <- handleMessage (WebServerInput logFile context accessToken room b)
+      (WebServerOutput resultText resultStatus) <- handleMessage (WebServerInput context accessToken room b)
       text (TextLazy.fromStrict resultText)
-      status (resultStatus)
+      status resultStatus
