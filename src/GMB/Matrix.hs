@@ -100,20 +100,29 @@ data MatrixSendMessageRequest = MatrixSendMessageRequest {
   , _msmTxnId            :: Text.Text
   , _msmRoomId           :: Text.Text
   , _msmMessage          :: Text.Text
-  , _msmFormattedMessage :: Text.Text
+  , _msmFormattedMessage :: Maybe Text.Text
   } deriving(Show)
 
 instance ToJSON MatrixSendMessageRequest where
   toJSON (MatrixSendMessageRequest _ _ _ message formatted_message) =
-    let msgtype = "m.notice" :: Text.Text
-        format = "org.matrix.custom.html" :: Text.Text
-    in
-      object [
-          "msgtype" .= msgtype
-        , "format" .= format
-        , "body" .= message
-        , "formatted_body" .= formatted_message
-        ]
+    case formatted_message of
+      Just markup ->
+        let msgtype = "m.notice" :: Text.Text
+            format = "org.matrix.custom.html" :: Text.Text
+        in
+          object [
+              "msgtype" .= msgtype
+            , "format" .= format
+            , "body" .= message
+            , "formatted_body" .= markup
+            ]
+      Nothing ->
+        let msgtype = "m.notice" :: Text.Text
+        in
+          object [
+              "msgtype" .= msgtype
+            , "body" .= message
+            ]
 
 makeLenses ''MatrixSendMessageRequest
 

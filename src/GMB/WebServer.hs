@@ -83,8 +83,8 @@ handleMessage input = do
         putLog $ "Join " <> (input ^. wsiRoom) <> " success"
         let wholeBody = (parseIncomingMessage . TextLazy.toStrict . decodeUtf8) (input ^. wsiBody)
             plain = wholeBody ^. plainBody
-            markup = fold (wholeBody ^. markupBody)
-        putLog $ "Sending message “" <> plain <> "”, markup “" <> markup <> "”"
+            markup = wholeBody ^. markupBody
+        putLog $ "Sending message “" <> plain <> "”, markup “" <> fold markup <> "”"
         void $ sendMessage (input ^. wsiContext) (MatrixSendMessageRequest (input ^. wsiAccessToken) (messageTxnId (input ^. wsiAccessToken) plain) (input ^. wsiRoom) plain markup)
         return (WebServerOutput "success" ok200)
       Just e  -> do
