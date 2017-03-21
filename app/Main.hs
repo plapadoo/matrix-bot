@@ -1,44 +1,44 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
-import           Control.Applicative     (Applicative, (<*>))
-import           Control.Lens            (to, view, (^.))
-import           Control.Monad           (Monad, return)
-import Data.Either(Either(..))
-import Data.String(String)
-import           Control.Monad.IO.Class  (MonadIO (..))
-import           Control.Monad.Reader    (MonadReader, ReaderT, runReaderT)
-import           Data.Eq                 ((==))
-import           Data.Function           (flip, ($), (.))
-import           Data.Functor            (Functor, (<$>))
-import           Data.Maybe              (Maybe (..), fromJust)
-import           Data.Monoid             ((<>))
-import qualified Data.Text               as Text
-import           Data.Text.IO            (appendFile, putStr)
-import           Data.Text.Lazy          (toStrict)
-import           Data.Text.Lazy.Encoding (decodeUtf8)
-import           Data.Time.Clock         (getCurrentTime)
-import           Data.Time.ISO8601       (formatISO8601Millis)
-import           Data.UUID               (UUID,toText)
-import           GMB.ConfigOptions       (ConfigOptions, coListenPort,
-                                          coLogFile, coMatrixBasePath,
-                                          coMatrixPassword, coMatrixUserName,
-                                          readConfigOptions)
-import           GMB.Http                (MonadHttp (..), hrContent,
-                                          hrContentType, hrMethod, hrUrl,hresStatusCode,hresContent)
-import           GMB.Matrix              (MatrixContext (..),
-                                          MatrixLoginRequest (..),
-                                          MonadMatrix (..), joinRoomImpl, login,
-                                          loginImpl, mlrpAccessToken, mlrpError,
-                                          sendMessageImpl)
-import           GMB.MonadLog            (MonadLog (..))
-import           GMB.ProgramOptions      (poConfigFile, readProgramOptions)
-import           GMB.Util                (textShow)
-import           GMB.WebServer           (webServer)
-import           Prelude                 (error)
-import           System.IO               (IO)
-import           System.Random           (randomIO)
+import Control.Applicative (Applicative, (<*>))
+import Control.Lens (to, view, (^.))
+import Control.Monad (Monad, return)
+import Data.Either (Either(..))
+import Data.String (String)
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
+import Data.Eq ((==))
+import Data.Function (flip, ($), (.))
+import Data.Functor (Functor, (<$>))
+import Data.Maybe (Maybe(..), fromJust)
+import Data.Monoid ((<>))
+import qualified Data.Text as Text
+import Data.Text.IO (appendFile, putStr)
+import Data.Text.Lazy (toStrict)
+import Data.Text.Lazy.Encoding (decodeUtf8)
+import Data.Time.Clock (getCurrentTime)
+import Data.Time.ISO8601 (formatISO8601Millis)
+import Data.UUID (UUID, toText)
+import GMB.ConfigOptions
+       (ConfigOptions, coListenPort, coLogFile, coMatrixBasePath,
+        coMatrixPassword, coMatrixUserName, readConfigOptions)
+import GMB.Http
+       (MonadHttp(..), hrContent, hrContentType, hrMethod, hrUrl,
+        hresStatusCode, hresContent)
+import GMB.Matrix
+       (MatrixContext(..), MatrixLoginRequest(..), MonadMatrix(..),
+        joinRoomImpl, login, loginImpl, mlrpAccessToken, mlrpError,
+        sendMessageImpl)
+import GMB.MonadLog (MonadLog(..))
+import GMB.ProgramOptions (poConfigFile, readProgramOptions)
+import GMB.Util (textShow)
+import GMB.WebServer (webServer)
+import Prelude (error)
+import System.IO (IO)
+import System.Random (randomIO)
 
 {-
 callback :: MatrixContext -> Text.Text -> RepoMapping -> GitlabEvent -> IO ()
@@ -109,56 +109,69 @@ applyMonitors logFile accessToken repoMapping context = do
                   else textShow (length xs) <> " change(s): " <> formatMessages xs
           void $ sendMessage context (MatrixSendMessageRequest accessToken (messageTxnId accessToken wholeMessage) room wholeMessage) wholeMessage
 -}
-newtype MyMonad a = MyMonad { runMyMonad :: ReaderT ConfigOptions IO a } deriving(Functor,Applicative,Monad,MonadIO,MonadReader ConfigOptions)
+newtype MyMonad a = MyMonad
+    { runMyMonad :: ReaderT ConfigOptions IO a
+    } deriving (Functor,Applicative,Monad,MonadIO,MonadReader ConfigOptions)
 
 downToIO :: ConfigOptions -> MyMonad a -> IO a
 downToIO co = ((flip runReaderT) co . runMyMonad)
 
 instance MonadLog MyMonad where
-  putLog inputText = do
-    logFile <- view coLogFile
-    currentTime <- liftIO (formatISO8601Millis <$> getCurrentTime)
-    let t = Text.pack currentTime <> " " <> inputText <> "\n"
-    liftIO $ if logFile == "-"
-      then putStr t
-      else appendFile logFile t
+    putLog inputText = do
+        logFile <- view coLogFile
+        currentTime <- liftIO (formatISO8601Millis <$> getCurrentTime)
+        let t = Text.pack currentTime <> " " <> inputText <> "\n"
+        liftIO $
+            if logFile == "-"
+                then putStr t
+                else appendFile logFile t
 
 instance MonadHttp MyMonad where
-   httpRequest request = do
-    uuid <- toText <$> liftIO randomIO
-    putLog $ uuid <> ": HTTP " <> textShow (request ^. hrMethod) <> " request to " <> (request ^. hrUrl) <> ", content type " <> (request ^. hrContentType) <> ", content: " <> (toStrict . decodeUtf8) (request ^. hrContent)
-    response <- liftIO (httpRequest request)
-    putLog $ uuid <> ": response code " <> textShow (response ^. hresStatusCode) <> ", content: " <> (toStrict . decodeUtf8) (response ^. hresContent)
-    return response
+    httpRequest request = do
+        uuid <- toText <$> liftIO randomIO
+        putLog $ uuid <> ": HTTP " <> textShow (request ^. hrMethod) <>
+            " request to " <>
+            (request ^. hrUrl) <>
+            ", content type " <>
+            (request ^. hrContentType) <>
+            ", content: " <>
+            (toStrict . decodeUtf8) (request ^. hrContent)
+        response <- liftIO (httpRequest request)
+        putLog $ uuid <> ": response code " <>
+            textShow (response ^. hresStatusCode) <>
+            ", content: " <>
+            (toStrict . decodeUtf8) (response ^. hresContent)
+        return response
 
 instance MonadMatrix MyMonad where
-  login = loginImpl
-  joinRoom = joinRoomImpl
-  sendMessage = sendMessageImpl
+    login = loginImpl
+    joinRoom = joinRoomImpl
+    sendMessage = sendMessageImpl
 
 main :: IO ()
 main = do
-  options <- readProgramOptions
-  configOptions <- readConfigOptions (options ^. poConfigFile)
-  result <- runReaderT (runMyMonad (initApplication)) configOptions
-  case result of
-    Left e -> error e
-    Right accessToken ->
-      webServer
-        (configOptions ^. coListenPort)
-        (MatrixContext (configOptions ^. coMatrixBasePath))
-        accessToken
-        (downToIO configOptions)
+    options <- readProgramOptions
+    configOptions <- readConfigOptions (options ^. poConfigFile)
+    result <- runReaderT (runMyMonad (initApplication)) configOptions
+    case result of
+        Left e -> error e
+        Right accessToken ->
+            webServer
+                (configOptions ^. coListenPort)
+                (MatrixContext (configOptions ^. coMatrixBasePath))
+                accessToken
+                (downToIO configOptions)
 
 initApplication :: MyMonad (Either String Text.Text)
 initApplication = do
-  context <- MatrixContext <$> (view coMatrixBasePath)
-  putLog "Logging in..."
-  loginRequest <- MatrixLoginRequest <$> (view coMatrixUserName) <*> (view coMatrixPassword)
-  loginReply <- login context loginRequest
-  case loginReply ^. mlrpError of
-    Nothing -> do
-      putLog "Login successful..."
-      return (Right (loginReply ^. mlrpAccessToken . to fromJust))
-    Just e ->
-      return (Left ("login failed: " <> (Text.unpack e)))
+    context <- MatrixContext <$> (view coMatrixBasePath)
+    putLog "Logging in..."
+    loginRequest <-
+        MatrixLoginRequest <$> (view coMatrixUserName) <*>
+        (view coMatrixPassword)
+    loginReply <- login context loginRequest
+    case loginReply ^. mlrpError of
+        Nothing -> do
+            putLog "Login successful..."
+            return (Right (loginReply ^. mlrpAccessToken . to fromJust))
+        Just e -> return (Left ("login failed: " <> (Text.unpack e)))
