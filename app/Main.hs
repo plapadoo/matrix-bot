@@ -25,16 +25,16 @@ import Data.UUID (UUID, toText)
 import GMB.ConfigOptions
        (ConfigOptions, coListenPort, coLogFile, coMatrixBasePath,
         coMatrixPassword, coMatrixUserName, readConfigOptions)
-import GMB.Http
+import Plpd.Http
        (MonadHttp(..), hrContent, hrContentType, hrMethod, hrUrl,
         hresStatusCode, hresContent)
 import GMB.Matrix
        (MatrixContext(..), MatrixLoginRequest(..), MonadMatrix(..),
         joinRoomImpl, login, loginImpl, mlrpAccessToken, mlrpError,
         sendMessageImpl)
-import GMB.MonadLog (MonadLog(..))
+import Plpd.MonadLog (MonadLog(..))
 import GMB.ProgramOptions (poConfigFile, readProgramOptions)
-import GMB.Util (textShow)
+import Plpd.Util (textShow)
 import GMB.WebServer (webServer)
 import Prelude (error)
 import System.IO (IO)

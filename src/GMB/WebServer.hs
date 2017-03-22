@@ -27,7 +27,7 @@ import Data.Monoid (mempty, (<>))
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TextLazy
 import Data.Text.Lazy.Encoding (decodeUtf8)
-import GMB.Http (MonadHttp(..))
+import Plpd.Http (MonadHttp(..))
 import GMB.IncomingMessage
        (markupBody, parseIncomingMessage, plainBody)
 import GMB.Matrix
@@ -36,8 +36,8 @@ import GMB.Matrix
         joinRoomImpl, login, loginImpl, messageTxnId, mjrpError,
         mlrpAccessToken, mlrpErrCode, mlrpError, sendMessage,
         sendMessageImpl)
-import GMB.MonadLog (MonadLog(..))
-import GMB.Util
+import Plpd.MonadLog (MonadLog(..))
+import Plpd.Util
        (breakOnMaybe, forceEither, surroundHtml, surroundQuotes,
         textHashAsText, textShow)
 import Network.HTTP.Types.Status

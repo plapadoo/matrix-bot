@@ -1,8 +1,8 @@
-name:                gitlab-matrix-bot
+name:                matrix-bot
 version:             0.1.0.0
 -- synopsis:
 -- description:
-homepage:            https://github.com/pmiddend/gitlab-matrix-bot#readme
+homepage:            https://github.com/pmiddend/matrix-bot#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Philipp Middendorf
@@ -16,19 +16,15 @@ extra-source-files:  README.md
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
-  exposed-modules: GMB.Http
-                 , GMB.Matrix
-                 , GMB.MonadLog
-                 , GMB.Util
-                 , GMB.IncomingMessage
-                 , GMB.Gitlab
+  exposed-modules: GMB.Matrix
                  , GMB.WebServer
                  , GMB.ConfigOptions
-                 , GMB.RepoMapping
                  , GMB.ProgramOptions
   build-depends:       base >= 4.7 && < 5
+                     , matrix-bot-api
                      , lens
                      , filepath
+                     , plpd-utils
                      , warp
                      , wai
                      , optparse-applicative
@@ -52,14 +48,15 @@ library
                      , wreq
                      
 
-executable gitlab-matrix-bot-exe
+executable matrix-bot-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
-                     , gitlab-matrix-bot
+                     , matrix-bot
                      , text
+                     , plpd-utils
                      , mtl
                      , time
                      , iso8601-time
@@ -68,12 +65,12 @@ executable gitlab-matrix-bot-exe
                      , lens
                      
 
-test-suite gitlab-matrix-bot-test
+test-suite matrix-bot-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
-                     , gitlab-matrix-bot
+                     , matrix-bot
                      , HUnit
                      , filepath
                      , test-framework

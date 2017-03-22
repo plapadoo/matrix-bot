@@ -42,11 +42,11 @@ import Data.Monoid ((<>))
 import Data.String (String)
 import qualified Data.Text as Text
 import Debug.Trace (traceShowId)
-import GMB.Http
+import Plpd.Http
        (HttpMethod(..), HttpRequest(..), HttpResponse, MonadHttp,
         hresContent, jsonHttpRequest)
-import GMB.MonadLog (MonadLog(..))
-import GMB.Util (forceEither, textHashAsText)
+import Plpd.MonadLog (MonadLog(..))
+import Plpd.Util (forceEither, textHashAsText)
 import Prelude (error, undefined)
 import System.FilePath
 import Text.Show (show, Show)
