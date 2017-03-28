@@ -31,7 +31,6 @@ library
                      , text
                      , transformers
                      , containers
-                     , hinotify
                      , directory
                      , http-types
                      , bytestring
