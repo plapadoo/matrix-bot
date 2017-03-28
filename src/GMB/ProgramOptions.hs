@@ -28,7 +28,7 @@ programOptionsParser =
     OptAppl.strOption
         (OptAppl.long "config-file" <>
          OptAppl.help "Where to put the config file" <>
-         OptAppl.value "/etc/gitlab-matrix-bot.conf")
+         OptAppl.value "/etc/matrix-bot.conf")
 
 readProgramOptions
     :: MonadIO m
@@ -40,5 +40,5 @@ readProgramOptions = liftIO (OptAppl.execParser opts)
             (OptAppl.helper <*> programOptionsParser)
             (OptAppl.fullDesc <>
              OptAppl.progDesc
-                 "Listen for gitlab webhooks, send them to a matrix channel" <>
-             OptAppl.header "gitlab-matrix-bot - send git stuff to matrix")
+                 "Listen for messages via HTTP POST, send them to a matrix channel" <>
+             OptAppl.header "matrix-bot - send stuff to matrix")

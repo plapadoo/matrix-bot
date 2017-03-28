@@ -19,20 +19,18 @@ import qualified Data.Text as Text
 import Data.Text.IO (appendFile, putStr)
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Encoding (decodeUtf8)
-import Data.Time.Clock (getCurrentTime)
-import Data.Time.ISO8601 (formatISO8601Millis)
 import Data.UUID (UUID, toText)
 import GMB.ConfigOptions
        (ConfigOptions, coListenPort, coLogFile, coMatrixBasePath,
         coMatrixPassword, coMatrixUserName, readConfigOptions)
 import Plpd.Http
-       (MonadHttp(..), hrContent, hrContentType, hrMethod, hrUrl,
+       (MonadHttp(..), hrContent, hrContentType, hrMethod, hrUrl,loggingHttp,
         hresStatusCode, hresContent)
 import GMB.Matrix
        (MatrixContext(..), MatrixLoginRequest(..), MonadMatrix(..),
         joinRoomImpl, login, loginImpl, mlrpAccessToken, mlrpError,
         sendMessageImpl)
-import Plpd.MonadLog (MonadLog(..))
+import Plpd.MonadLog (MonadLog(..),defaultLog)
 import GMB.ProgramOptions (poConfigFile, readProgramOptions)
 import Plpd.Util (textShow)
 import GMB.WebServer (webServer)
@@ -119,29 +117,10 @@ downToIO co = ((flip runReaderT) co . runMyMonad)
 instance MonadLog MyMonad where
     putLog inputText = do
         logFile <- view coLogFile
-        currentTime <- liftIO (formatISO8601Millis <$> getCurrentTime)
-        let t = Text.pack currentTime <> " " <> inputText <> "\n"
-        liftIO $
-            if logFile == "-"
-                then putStr t
-                else appendFile logFile t
+        defaultLog logFile inputText
 
 instance MonadHttp MyMonad where
-    httpRequest request = do
-        uuid <- toText <$> liftIO randomIO
-        putLog $ uuid <> ": HTTP " <> textShow (request ^. hrMethod) <>
-            " request to " <>
-            (request ^. hrUrl) <>
-            ", content type " <>
-            (request ^. hrContentType) <>
-            ", content: " <>
-            (toStrict . decodeUtf8) (request ^. hrContent)
-        response <- liftIO (httpRequest request)
-        putLog $ uuid <> ": response code " <>
-            textShow (response ^. hresStatusCode) <>
-            ", content: " <>
-            (toStrict . decodeUtf8) (response ^. hresContent)
-        return response
+    httpRequest = loggingHttp
 
 instance MonadMatrix MyMonad where
     login = loginImpl
