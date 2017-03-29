@@ -20,20 +20,20 @@ import Data.Text.IO (appendFile, putStr)
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Encoding (decodeUtf8)
 import Data.UUID (UUID, toText)
-import GMB.ConfigOptions
+import Web.Matrix.Bot.ConfigOptions
        (ConfigOptions, coListenPort, coLogFile, coMatrixBasePath,
         coMatrixPassword, coMatrixUserName, readConfigOptions)
 import Plpd.Http
        (MonadHttp(..), hrContent, hrContentType, hrMethod, hrUrl,loggingHttp,
         hresStatusCode, hresContent)
-import GMB.Matrix
+import Web.Matrix.API
        (MatrixContext(..), MatrixLoginRequest(..), MonadMatrix(..),
         joinRoomImpl, login, loginImpl, mlrpAccessToken, mlrpError,
         sendMessageImpl)
 import Plpd.MonadLog (MonadLog(..),defaultLog)
-import GMB.ProgramOptions (poConfigFile, readProgramOptions)
+import Web.Matrix.Bot.ProgramOptions (poConfigFile, readProgramOptions)
 import Plpd.Util (textShow)
-import GMB.WebServer (webServer)
+import Web.Matrix.Bot.WebServer (webServer)
 import Prelude (error)
 import System.IO (IO)
 import System.Random (randomIO)

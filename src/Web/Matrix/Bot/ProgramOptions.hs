@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module GMB.ProgramOptions
+module Web.Matrix.Bot.ProgramOptions
   (ProgramOptions(..)
   ,readProgramOptions
   ,poConfigFile)

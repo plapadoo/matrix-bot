@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module GMB.ConfigOptions
+module Web.Matrix.Bot.ConfigOptions
   (ConfigOptions(..)
   ,readConfigOptions
   ,coLogFile

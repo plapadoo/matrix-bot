@@ -16,10 +16,10 @@ extra-source-files:  README.md
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
-  exposed-modules: GMB.Matrix
-                 , GMB.WebServer
-                 , GMB.ConfigOptions
-                 , GMB.ProgramOptions
+  exposed-modules: Web.Matrix.API
+                 , Web.Matrix.Bot.WebServer
+                 , Web.Matrix.Bot.ConfigOptions
+                 , Web.Matrix.Bot.ProgramOptions
   build-depends:       base >= 4.7 && < 5
                      , matrix-bot-api
                      , lens

@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module GMB.Matrix
+module Web.Matrix.API
   (loginImpl
   ,joinRoomImpl
   ,sendMessageImpl

@@ -21,20 +21,17 @@ import Data.Maybe (Maybe(..), isJust)
 import Data.Ord ((<=))
 import Data.Text (Text, isInfixOf, isPrefixOf, length)
 import Data.Text.IO (putStrLn)
-import GMB.IncomingMessage
+import Web.Matrix.Bot.IncomingMessage
        (IncomingMessage, bodyEnd, bodyStart, constructIncomingMessage,
         coparseIncomingMessage, markupBody, parseIncomingMessage,
         plainBody)
-import GMB.Matrix
+import Web.Matrix.API
        (MatrixContext(..), MatrixJoinReply(..), MatrixJoinRequest(..),
         MatrixLoginReply(..), MatrixLoginRequest(..),
-        MatrixSendMessageReply(..), MatrixSendMessageRequest(..))
-import GMB.Matrix
-       (MatrixJoinReply(..), MatrixLoginReply(..),
-        MatrixSendMessageReply(..), MonadMatrix(..))
-import GMB.MonadLog (MonadLog(..))
-import GMB.Util (none, textShow)
-import GMB.WebServer
+        MatrixSendMessageReply(..), MatrixSendMessageRequest(..),MonadMatrix(..))
+import Plpd.MonadLog (MonadLog(..))
+import Plpd.Util (none, textShow)
+import Web.Matrix.Bot.WebServer
        (WebServerInput(..), WebServerOutput(..), handleMessage)
 import Network.HTTP.Types.Status (forbidden403, ok200)
 import Prelude (undefined)

@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module GMB.WebServer
+module Web.Matrix.Bot.WebServer
   (webServer
   ,handleMessage
   ,WebServerInput(..)
@@ -28,9 +28,9 @@ import Data.Text (Text)
 import qualified Data.Text.Lazy as TextLazy
 import Data.Text.Lazy.Encoding (decodeUtf8)
 import Plpd.Http (MonadHttp(..))
-import GMB.IncomingMessage
+import Web.Matrix.Bot.IncomingMessage
        (markupBody, parseIncomingMessage, plainBody)
-import GMB.Matrix
+import Web.Matrix.API
        (MatrixContext(..), MatrixJoinRequest(..), MatrixLoginRequest(..),
         MatrixSendMessageRequest(..), MonadMatrix(..), joinRoom,
         joinRoomImpl, login, loginImpl, messageTxnId, mjrpError,
