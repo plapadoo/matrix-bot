@@ -79,6 +79,8 @@ test-suite matrix-bot-test
                      , test-framework-quickcheck2
                      , quickcheck-instances
                      , text
+                     , matrix-bot-api
+                     , plpd-utils
                      , mtl
                      , QuickCheck
                      , http-types

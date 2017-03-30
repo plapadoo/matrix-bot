@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -144,7 +145,7 @@ case_parseMessageWithBodyAndMarkup = do
     "nomarkup" @=? result ^. plainBody
     Just "markup" @=? result ^. markupBody
 
-instance Arbitrary IncomingMessage where
+instance Arbitrary (IncomingMessage Text Text) where
     arbitrary = do
         plain <- arbitrary
         doMarkup <- arbitrary
