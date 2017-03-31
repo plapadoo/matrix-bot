@@ -97,6 +97,10 @@ handleMessage input = do
             putLog $
                 "Sending message “" <> plain <> "”, markup “" <> fold markup <>
                 "”"
+            -- FIXME: This has a very subtle bug: the transaction ID doesn't
+            -- on the current time, so two exactly identical messages are
+            -- filtered by the server. But I was too lazy to add another
+            -- type class "MonadTime" or something here.
             void $
                 sendMessage
                     (input ^. wsiContext)
