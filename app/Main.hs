@@ -1,17 +1,18 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
 import Control.Applicative (Applicative, (<*>))
-import Control.Lens (to, view, (^.))
-import Control.Monad (Monad, return)
+import Control.Lens (to, view, (^.),makeLenses)
+import Control.Monad (Monad, return,void)
 import Data.Either (Either(..))
 import Data.String (String)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Data.Eq ((==))
-import Data.Function (flip, ($), (.))
+import Data.Function (flip, ($), (.),const)
 import Data.Functor (Functor, (<$>))
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Monoid ((<>))
@@ -37,18 +38,27 @@ import Web.Matrix.Bot.WebServer (webServer)
 import Prelude (error)
 import System.IO (IO)
 import System.Random (randomIO)
+import Control.Concurrent.MVar(MVar,newMVar,modifyMVar_)
+
+data MyDynamicState = MyDynamicState {
+    _dynStateConfigOptions :: ConfigOptions
+  , _dynStateLogMVar :: MVar ()
+  }
+
+makeLenses ''MyDynamicState
 
 newtype MyMonad a = MyMonad
-    { runMyMonad :: ReaderT ConfigOptions IO a
-    } deriving (Functor,Applicative,Monad,MonadIO,MonadReader ConfigOptions)
+    { runMyMonad :: ReaderT MyDynamicState IO a
+    } deriving (Functor,Applicative,Monad,MonadIO,MonadReader MyDynamicState)
 
-downToIO :: ConfigOptions -> MyMonad a -> IO a
+downToIO :: MyDynamicState -> MyMonad a -> IO a
 downToIO co = ((flip runReaderT) co . runMyMonad)
 
 instance MonadLog MyMonad where
     putLog inputText = do
-        logFile <- view coLogFile
-        defaultLog logFile inputText
+        logFile <- view (dynStateConfigOptions . coLogFile)
+        mvar <- (view dynStateLogMVar)
+        liftIO $ modifyMVar_ mvar $ const (defaultLog logFile inputText)
 
 instance MonadHttp MyMonad where
     httpRequest = loggingHttp
@@ -62,7 +72,9 @@ main :: IO ()
 main = do
     options <- readProgramOptions
     configOptions <- readConfigOptions (options ^. poConfigFile)
-    result <- runReaderT (runMyMonad (initApplication)) configOptions
+    mvar <- newMVar ()
+    let dynState = MyDynamicState configOptions mvar
+    result <- runReaderT (runMyMonad (initApplication)) dynState
     case result of
         Left e -> error e
         Right accessToken ->
@@ -70,15 +82,15 @@ main = do
                 (configOptions ^. coListenPort)
                 (MatrixContext (configOptions ^. coMatrixBasePath))
                 accessToken
-                (downToIO configOptions)
+                (downToIO dynState)
 
 initApplication :: MyMonad (Either String Text.Text)
 initApplication = do
-    context <- MatrixContext <$> (view coMatrixBasePath)
+    context <- MatrixContext <$> (view (dynStateConfigOptions . coMatrixBasePath ))
     putLog "Logging in..."
     loginRequest <-
-        MatrixLoginRequest <$> (view coMatrixUserName) <*>
-        (view coMatrixPassword)
+        MatrixLoginRequest <$> (view (dynStateConfigOptions . coMatrixUserName )) <*>
+        (view (dynStateConfigOptions . coMatrixPassword ))
     loginReply <- login context loginRequest
     case loginReply ^. mlrpError of
         Nothing -> do
