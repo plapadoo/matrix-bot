@@ -78,6 +78,7 @@ test-suite matrix-bot-test
                      , test-framework-th
                      , test-framework-quickcheck2
                      , quickcheck-instances
+                     , lucid
                      , text
                      , matrix-bot-api
                      , plpd-utils

@@ -10,6 +10,7 @@ import Control.Lens
 import Control.Monad (Monad, mapM_, return)
 import Control.Monad.Identity (Identity)
 import Control.Monad.Loops (iterateUntil)
+import Lucid(Html,body_,div_)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.Writer
        (MonadWriter, Writer(..), runWriter, tell)
@@ -145,21 +146,27 @@ case_parseMessageWithBodyAndMarkup = do
     "nomarkup" @=? result ^. plainBody
     Just "markup" @=? result ^. markupBody
 
-instance Arbitrary (IncomingMessage Text Text) where
+-- Not really arbitrary yet
+instance Arbitrary (Html ()) where
+  arbitrary = do
+    return (body_ (div_ "foo"))
+
+instance Arbitrary (IncomingMessage Text (Html ())) where
     arbitrary = do
         plain <- arbitrary
         doMarkup <- arbitrary
         if doMarkup
             then do
-                markup <- iterateUntil (not . (bodyEnd `isInfixOf`)) arbitrary
+                markup <- arbitrary
                 return (constructIncomingMessage plain (Just markup))
             else return (constructIncomingMessage plain Nothing)
 
-prop_coparseParseAreInverse message = do
-    (parseIncomingMessage . coparseIncomingMessage) message == message
+-- Not applicable anymore since parsing results in text, not HTML
+-- prop_coparseParseAreInverse message = do
+--     (parseIncomingMessage . coparseIncomingMessage) message == message
 
-prop_parseCoparseAreInverse message = do
-    (coparseIncomingMessage . parseIncomingMessage) message == message
+-- prop_parseCoparseAreInverse message = do
+--     (coparseIncomingMessage . parseIncomingMessage) message == message
 
 prop_coparseWithMarkupContainsBodyStart message = do
     isJust (message ^. markupBody) ==> bodyStart `isPrefixOf`
