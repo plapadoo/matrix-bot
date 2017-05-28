@@ -17,9 +17,13 @@ import Control.Lens (makeLenses, to, (^.))
 import Control.Monad (Monad, return, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Class (lift)
+import Network.Wai.Handler.Warp (Settings,setPort,setOnExceptionResponse)
+import Network.Wai (responseLBS)
 import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy.Char8 (pack)
 import Data.Foldable (fold)
 import Data.Function (id, ($), (.))
+import Data.Default(def)
 import Data.Functor ((<$>))
 import Data.Int (Int)
 import Data.Maybe (Maybe(..))
@@ -41,14 +45,15 @@ import Plpd.Util
        (breakOnMaybe, forceEither, surroundHtml, surroundQuotes,
         textHashAsText, textShow)
 import Network.HTTP.Types.Status
-       (Status, badRequest400, forbidden403, ok200)
+       (Status, badRequest400, forbidden403, ok200,status500)
 import Network.Wai (Response)
 import Network.Wai.Handler.Warp (Port)
 import Prelude ()
 import System.FilePath (FilePath)
+import Text.Show(show)
 import System.IO (IO)
 import Web.Scotty.Trans
-       (ActionT, ScottyT, body, param, post, scottyT, setHeader, status,
+       (ActionT, ScottyT, body, param, post, scottyOptsT, setHeader, status,Options(..),
         text)
 
 instance (Monad m, MonadHttp m) =>
@@ -120,11 +125,12 @@ webServer
        (MonadIO m, Monad m, MonadLog m, MonadMatrix m)
     => Port -> MatrixContext -> Text -> (m Response -> IO Response) -> IO ()
 webServer listenPort context accessToken downToIO =
-    scottyT
-        listenPort
+    scottyOptsT
+        (def { settings = (setOnExceptionResponse onE (setPort listenPort (settings def))) })
         downToIO
         (post "/:room" handler :: ScottyT TextLazy.Text m ())
   where
+    onE e = responseLBS status500 [] ("Something went wrong: " <> pack (show e))
     handler :: ActionT TextLazy.Text m ()
     handler = do
         room <- TextLazy.toStrict <$> param "room"
