@@ -1,51 +1,75 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
-module Web.Matrix.Bot.ConfigOptions
-  (ConfigOptions(..)
-  ,readConfigOptions
-  ,coLogFile
-  ,coListenPort
-  ,coListenHost
-  ,coMatrixUserName
-  ,coMatrixPassword
-  ,coMatrixBasePath)
+module Web.Matrix.Bot.ConfigOptions(
+    ConfigOptions(..)
+  , readConfigOptions
+  , coLogFile
+  , coListenPort
+  , coListenHost
+  , coMatrix
+  , coMatrixUserName
+  , coMatrixPassword
+  , coMatrixBasePath)
   where
 
-import Control.Applicative ((<*>))
-import Control.Lens (makeLenses)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Configurator (Worth(..), load, lookup, require)
-import Data.Functor ((<$>))
-import Data.Int (Int)
-import Data.Maybe (Maybe)
-import qualified Data.Text as Text
-import Prelude (error, undefined)
-import System.FilePath
+import           Control.Applicative    ((<*>))
+import           Control.Lens           (Getter, to)
+import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Data.Function          ((.))
+import           Data.Functor           ((<$>))
+import           Data.Int               (Int)
+import           Data.Maybe             (Maybe)
+import           Data.String            (String, fromString)
+import qualified Data.Text              as Text
+import           Data.Text.Buildable    (build)
+import           Data.Text.Lazy         (toStrict)
+import           Data.Text.Lazy.Builder (toLazyText)
+import qualified Dhall                  as Dhall
+import           GHC.Generics           (Generic)
+import           Prelude                (error, fromIntegral, undefined)
+import           System.FilePath
+import           System.IO              (IO)
+
+data MatrixOptions = MatrixOptions {
+    userName :: Dhall.Text
+  , basePath :: Dhall.Text
+  , password :: Dhall.Text
+  } deriving(Generic,Dhall.Interpret)
 
 data ConfigOptions = ConfigOptions
-    { _coLogFile :: FilePath
-    , _coListenPort :: Int
-    , _coListenHost :: Maybe Text.Text
-    , _coMatrixBasePath :: Text.Text
-    , _coMatrixUserName :: Text.Text
-    , _coMatrixPassword :: Text.Text
-    }
+    { logFile    :: Dhall.Text
+    , listenPort :: Dhall.Natural
+    , listenHost :: Maybe Dhall.Text
+    , matrix     :: MatrixOptions
+    } deriving(Generic,Dhall.Interpret)
 
-makeLenses ''ConfigOptions
+toText :: Dhall.Text -> Text.Text
+toText = toStrict . toLazyText . build
 
-requireLift config key = liftIO (require config key)
+toString :: Dhall.Text -> String
+toString = Text.unpack . toText
 
-lookupLift config key = liftIO (lookup config key)
+coLogFile :: Getter ConfigOptions FilePath
+coLogFile = to (toString . logFile)
 
-readConfigOptions
-    :: MonadIO m
-    => FilePath -> m ConfigOptions
-readConfigOptions configFilePath = do
-    config <- liftIO (load [Required configFilePath])
-    ConfigOptions <$> (requireLift config "log-file") <*>
-        (requireLift config "listen-port") <*>
-        (lookupLift config "listen-host") <*>
-        (requireLift config "matrix.base-path") <*>
-        (requireLift config "matrix.username") <*>
-        (requireLift config "matrix.password")
+coListenHost :: Getter ConfigOptions (Maybe Text.Text)
+coListenHost = to ((toText <$>) . listenHost)
+
+coMatrix :: Getter ConfigOptions MatrixOptions
+coMatrix = to matrix
+
+coMatrixUserName :: Getter MatrixOptions Text.Text
+coMatrixUserName = to (toText . userName)
+
+coMatrixPassword :: Getter MatrixOptions Text.Text
+coMatrixPassword = to (toText . password)
+
+coMatrixBasePath :: Getter MatrixOptions Text.Text
+coMatrixBasePath = to (toText . basePath)
+
+coListenPort :: Getter ConfigOptions Int
+coListenPort = to (fromIntegral . listenPort)
+
+readConfigOptions :: String -> IO ConfigOptions
+readConfigOptions = Dhall.input Dhall.auto . fromString

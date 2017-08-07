@@ -1,48 +1,56 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE TemplateHaskell            #-}
 
 module Main where
 
-import Control.Applicative (Applicative, (<*>))
-import Control.Lens (to, view, (^.),makeLenses)
-import Control.Monad (Monad, return,void)
-import Data.Either (Either(..))
-import Data.String (String)
-import Control.Monad.IO.Class (MonadIO(..))
-import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Data.Eq ((==))
-import Data.Function (flip, ($), (.),const)
-import Data.Functor (Functor, (<$>))
-import Data.Maybe (Maybe(..), fromJust)
-import Data.Monoid ((<>))
-import qualified Data.Text as Text
-import Data.Text.IO (appendFile, putStr)
-import Data.Text.Lazy (toStrict)
-import Data.Text.Lazy.Encoding (decodeUtf8)
-import Data.UUID (UUID, toText)
-import Web.Matrix.Bot.ConfigOptions
-       (ConfigOptions, coListenPort, coLogFile, coMatrixBasePath,
-        coMatrixPassword, coMatrixUserName, readConfigOptions)
-import Plpd.Http
-       (MonadHttp(..), hrContent, hrContentType, hrMethod, hrUrl,loggingHttp,
-        hresStatusCode, hresContent)
-import Web.Matrix.API
-       (MatrixContext(..), MatrixLoginRequest(..), MonadMatrix(..),
-        joinRoomImpl, login, loginImpl, mlrpAccessToken, mlrpError,
-        sendMessageImpl)
-import Plpd.MonadLog (MonadLog(..),defaultLog)
-import Web.Matrix.Bot.ProgramOptions (poConfigFile, readProgramOptions)
-import Plpd.Util (textShow)
-import Web.Matrix.Bot.WebServer (webServer)
-import Prelude (error)
-import System.IO (IO)
-import System.Random (randomIO)
-import Control.Concurrent.MVar(MVar,newMVar,modifyMVar_)
+import           Control.Applicative           (Applicative, (<*>))
+import           Control.Concurrent.MVar       (MVar, modifyMVar_, newMVar)
+import           Control.Lens                  (makeLenses, to, view, (^.))
+import           Control.Monad                 (Monad, return, void)
+import           Control.Monad.IO.Class        (MonadIO (..))
+import           Control.Monad.Reader          (MonadReader, ReaderT,
+                                                runReaderT)
+import           Data.Either                   (Either (..))
+import           Data.Eq                       ((==))
+import           Data.Function                 (const, flip, ($), (.))
+import           Data.Functor                  (Functor, (<$>))
+import           Data.Maybe                    (Maybe (..), fromJust)
+import           Data.Monoid                   ((<>))
+import           Data.String                   (String)
+import qualified Data.Text                     as Text
+import           Data.Text.IO                  (appendFile, putStr)
+import           Data.Text.Lazy                (toStrict)
+import           Data.Text.Lazy.Encoding       (decodeUtf8)
+import           Data.UUID                     (UUID, toText)
+import           Plpd.Http                     (MonadHttp (..), hrContent,
+                                                hrContentType, hrMethod, hrUrl,
+                                                hresContent, hresStatusCode,
+                                                loggingHttp)
+import           Plpd.MonadLog                 (MonadLog (..), defaultLog)
+import           Plpd.Util                     (textShow)
+import           Prelude                       (error)
+import           System.IO                     (IO)
+import           System.Random                 (randomIO)
+import           Web.Matrix.API                (MatrixContext (..),
+                                                MatrixLoginRequest (..),
+                                                MonadMatrix (..), joinRoomImpl,
+                                                login, loginImpl,
+                                                mlrpAccessToken, mlrpError,
+                                                sendMessageImpl)
+import           Web.Matrix.Bot.ConfigOptions  (ConfigOptions, coListenPort,
+                                                coLogFile, coMatrix,
+                                                coMatrixBasePath,
+                                                coMatrixPassword,
+                                                coMatrixUserName,
+                                                readConfigOptions)
+import           Web.Matrix.Bot.ProgramOptions (poConfigFile,
+                                                readProgramOptions)
+import           Web.Matrix.Bot.WebServer      (webServer)
 
 data MyDynamicState = MyDynamicState {
     _dynStateConfigOptions :: ConfigOptions
-  , _dynStateLogMVar :: MVar ()
+  , _dynStateLogMVar       :: MVar ()
   }
 
 makeLenses ''MyDynamicState
@@ -80,17 +88,17 @@ main = do
         Right accessToken ->
             webServer
                 (configOptions ^. coListenPort)
-                (MatrixContext (configOptions ^. coMatrixBasePath))
+                (MatrixContext (configOptions ^. coMatrix . coMatrixBasePath))
                 accessToken
                 (downToIO dynState)
 
 initApplication :: MyMonad (Either String Text.Text)
 initApplication = do
-    context <- MatrixContext <$> (view (dynStateConfigOptions . coMatrixBasePath ))
+    context <- MatrixContext <$> (view (dynStateConfigOptions . coMatrix . coMatrixBasePath ))
     putLog "Logging in..."
     loginRequest <-
-        MatrixLoginRequest <$> (view (dynStateConfigOptions . coMatrixUserName )) <*>
-        (view (dynStateConfigOptions . coMatrixPassword ))
+        MatrixLoginRequest <$> (view (dynStateConfigOptions . coMatrix . coMatrixUserName )) <*>
+        (view (dynStateConfigOptions . coMatrix . coMatrixPassword ))
     loginReply <- login context loginRequest
     case loginReply ^. mlrpError of
         Nothing -> do

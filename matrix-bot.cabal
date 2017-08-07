@@ -38,7 +38,8 @@ library
                      , cryptonite
                      , stm
                      , monad-loops
-                     , configurator
+                     , dhall
+                     , text-format
                      , scotty
                      , mtl
                      , attoparsec
