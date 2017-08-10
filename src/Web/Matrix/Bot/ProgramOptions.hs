@@ -28,7 +28,7 @@ programOptionsParser =
     OptAppl.strOption
         (OptAppl.long "config-file" <>
          OptAppl.help "Where to put the config file" <>
-         OptAppl.value "/etc/matrix-bot/matrix-bot.conf")
+         OptAppl.value "/etc/matrix-bot/matrix-bot.dhall")
 
 readProgramOptions
     :: MonadIO m
