@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric  #-}
 
 module Web.Matrix.Bot.ConfigOptions(
     ConfigOptions(..)
@@ -27,6 +27,7 @@ import           Data.Text.Lazy         (toStrict)
 import           Data.Text.Lazy.Builder (toLazyText)
 import qualified Dhall                  as Dhall
 import           GHC.Generics           (Generic)
+import           Plpd.Dhall             (toString, toText)
 import           Prelude                (error, fromIntegral, undefined)
 import           System.FilePath
 import           System.IO              (IO)
@@ -43,12 +44,6 @@ data ConfigOptions = ConfigOptions
     , listenHost :: Maybe Dhall.Text
     , matrix     :: MatrixOptions
     } deriving(Generic,Dhall.Interpret)
-
-toText :: Dhall.Text -> Text.Text
-toText = toStrict . toLazyText . build
-
-toString :: Dhall.Text -> String
-toString = Text.unpack . toText
 
 coLogFile :: Getter ConfigOptions FilePath
 coLogFile = to (toString . logFile)
@@ -72,4 +67,4 @@ coListenPort :: Getter ConfigOptions Int
 coListenPort = to (fromIntegral . listenPort)
 
 readConfigOptions :: String -> IO ConfigOptions
-readConfigOptions = Dhall.input Dhall.auto . fromString
+readConfigOptions = Dhall.detailed . Dhall.input Dhall.auto . fromString

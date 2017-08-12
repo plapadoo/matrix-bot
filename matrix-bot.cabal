@@ -16,6 +16,7 @@ extra-source-files:  README.md
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
+  default-extensions: OverloadedStrings NoImplicitPrelude
   exposed-modules: Web.Matrix.API
                  , Web.Matrix.Bot.WebServer
                  , Web.Matrix.Bot.ConfigOptions
@@ -54,6 +55,7 @@ executable matrix-bot-exe
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
+  default-extensions: OverloadedStrings NoImplicitPrelude
   build-depends:       base >= 4.7 && < 5
                      , matrix-bot
                      , text
@@ -90,3 +92,4 @@ test-suite matrix-bot-test
                      , monad-loops
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
+  default-extensions: OverloadedStrings NoImplicitPrelude
