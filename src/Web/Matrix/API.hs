@@ -1,55 +1,54 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Web.Matrix.API
-  (loginImpl
-  ,joinRoomImpl
-  ,sendMessageImpl
-  ,mlrpErrCode
-  ,mlrpError
-  ,mlrpAccessToken
-  ,mjrpError
-  ,messageTxnId
-  ,MonadMatrix(..)
-  ,MatrixLoginRequest(..)
-  ,MatrixLoginReply(..)
-  ,MatrixJoinRequest(..)
-  ,MatrixJoinReply(..)
-  ,MatrixSendMessageRequest(..)
-  ,MatrixContext(..)
-  ,MatrixSendMessageReply(..))
+  ( loginImpl
+  , joinRoomImpl
+  , sendMessageImpl
+  , mlrpErrCode
+  , mlrpError
+  , mlrpAccessToken
+  , mjrpError
+  , messageTxnId
+  , MonadMatrix(..)
+  , MatrixLoginRequest(..)
+  , MatrixLoginReply(..)
+  , MatrixJoinRequest(..)
+  , MatrixJoinReply(..)
+  , MatrixSendMessageRequest(..)
+  , MatrixContext(..)
+  , MatrixSendMessageReply(..))
   where
 
-import System.IO (IO)
-import Control.Applicative (Applicative, (<*>))
-import Control.Lens (makeLenses, to, view, (&), (.~), (^.))
-import Control.Monad (Monad, return)
-import Control.Monad.Free (Free, liftF)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Aeson
-       (FromJSON(..), ToJSON(..), Value(..), object, (.:?), (.=))
-import qualified Data.ByteString.Lazy as BSL
-import Data.Either (Either(..), either)
-import Data.Function (id, ($), (.))
-import Data.Functor (Functor(..), (<$>))
-import Data.Functor.Sum (Sum)
-import Data.Int (Int)
-import Data.List (null)
-import Data.Maybe (Maybe(..))
-import Data.Maybe (Maybe)
-import Data.Monoid ((<>))
-import Data.String (String)
-import qualified Data.Text as Text
-import Debug.Trace (traceShowId)
-import Plpd.Http
-       (HttpMethod(..), HttpRequest(..), HttpResponse, MonadHttp,
-        hresContent, jsonHttpRequest)
-import Plpd.MonadLog (MonadLog(..))
-import Plpd.Util (forceEither, textHashAsText)
-import Prelude (error, undefined)
-import System.FilePath
-import Text.Show (show, Show)
+import           Control.Applicative    (Applicative, (<*>))
+import           Control.Lens           (makeLenses, to, view, (&), (.~), (^.))
+import           Control.Monad          (Monad, return)
+import           Control.Monad.Free     (Free, liftF)
+import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Data.Aeson             (FromJSON (..), ToJSON (..), Value (..),
+                                         object, (.:?), (.=))
+import qualified Data.ByteString.Lazy   as BSL
+import           Data.Either            (Either (..), either)
+import           Data.Function          (id, ($), (.))
+import           Data.Functor           (Functor (..), (<$>))
+import           Data.Functor.Sum       (Sum)
+import           Data.Int               (Int)
+import           Data.List              (null)
+import           Data.Maybe             (Maybe (..))
+import           Data.Maybe             (Maybe)
+import           Data.Monoid            ((<>))
+import           Data.String            (String)
+import qualified Data.Text              as Text
+import           Debug.Trace            (traceShowId)
+import           Plpd.Http              (HttpMethod (..), HttpRequest (..),
+                                         HttpResponse, MonadHttp, hresContent,
+                                         jsonHttpRequest)
+import           Plpd.MonadLog          (MonadLog (..))
+import           Plpd.Util              (forceEither, textHashAsText)
+import           Prelude                (error, undefined)
+import           System.FilePath
+import           System.IO              (IO)
+import           Text.Show              (Show, show)
 
 data MatrixLoginRequest = MatrixLoginRequest
     { _mlrUsername :: Text.Text
@@ -66,8 +65,8 @@ instance ToJSON MatrixLoginRequest where
 makeLenses ''MatrixLoginRequest
 
 data MatrixLoginReply = MatrixLoginReply
-    { _mlrpErrCode :: Maybe Text.Text
-    , _mlrpError :: Maybe Text.Text
+    { _mlrpErrCode     :: Maybe Text.Text
+    , _mlrpError       :: Maybe Text.Text
     , _mlrpAccessToken :: Maybe Text.Text
     } deriving ((Show))
 
@@ -80,7 +79,7 @@ makeLenses ''MatrixLoginReply
 
 data MatrixJoinRequest = MatrixJoinRequest
     { _mjrAccessToken :: Text.Text
-    , _mjrRoomId :: Text.Text
+    , _mjrRoomId      :: Text.Text
     } deriving ((Show))
 
 instance ToJSON MatrixJoinRequest where
@@ -90,7 +89,7 @@ makeLenses ''MatrixJoinRequest
 
 data MatrixJoinReply = MatrixJoinReply
     { _mjrpErrCode :: Maybe Text.Text
-    , _mjrpError :: Maybe Text.Text
+    , _mjrpError   :: Maybe Text.Text
     } deriving ((Show))
 
 instance FromJSON MatrixJoinReply where
@@ -100,10 +99,10 @@ instance FromJSON MatrixJoinReply where
 makeLenses ''MatrixJoinReply
 
 data MatrixSendMessageRequest = MatrixSendMessageRequest
-    { _msmAccessToken :: Text.Text
-    , _msmTxnId :: Text.Text
-    , _msmRoomId :: Text.Text
-    , _msmMessage :: Text.Text
+    { _msmAccessToken      :: Text.Text
+    , _msmTxnId            :: Text.Text
+    , _msmRoomId           :: Text.Text
+    , _msmMessage          :: Text.Text
     , _msmFormattedMessage :: Maybe Text.Text
     } deriving ((Show))
 
@@ -126,7 +125,7 @@ makeLenses ''MatrixSendMessageRequest
 
 data MatrixSendMessageReply = MatrixSendMessageReply
     { _msmrpErrCode :: Maybe Text.Text
-    , _msmrpError :: Maybe Text.Text
+    , _msmrpError   :: Maybe Text.Text
     } deriving ((Show))
 
 instance FromJSON MatrixSendMessageReply where

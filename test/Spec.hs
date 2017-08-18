@@ -1,54 +1,66 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell            #-}
 
-import Control.Applicative (Applicative, pure, (*>), (<*>))
-import Control.Lens
-       (has, makeLenses, makePrisms, view, (&), (.~), (^.))
-import Control.Monad (Monad, mapM_, return)
-import Control.Monad.Identity (Identity)
-import Control.Monad.Loops (iterateUntil)
-import Lucid(Html,body_,div_)
-import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Control.Monad.Writer
-       (MonadWriter, Writer(..), runWriter, tell)
-import Data.Bool (not)
-import Data.Eq ((==))
-import Data.Foldable (any)
-import Data.Function (const, flip, (.))
-import Data.Functor (Functor, (<$>))
-import Data.Maybe (Maybe(..), isJust)
-import Data.Ord ((<=))
-import Data.Text (Text, isInfixOf, isPrefixOf, length)
-import Data.Text.IO (putStrLn)
-import Web.Matrix.Bot.IncomingMessage
-       (IncomingMessage, bodyEnd, bodyStart, constructIncomingMessage,
-        coparseIncomingMessage, markupBody, parseIncomingMessage,
-        plainBody)
-import Web.Matrix.API
-       (MatrixContext(..), MatrixJoinReply(..), MatrixJoinRequest(..),
-        MatrixLoginReply(..), MatrixLoginRequest(..),
-        MatrixSendMessageReply(..), MatrixSendMessageRequest(..),MonadMatrix(..))
-import Plpd.MonadLog (MonadLog(..))
-import Plpd.Util (none, textShow)
-import Web.Matrix.Bot.WebServer
-       (WebServerInput(..), WebServerOutput(..), handleMessage)
-import Network.HTTP.Types.Status (forbidden403, ok200)
-import Prelude (undefined)
-import System.FilePath (FilePath)
-import System.IO (IO)
-import Test.Framework (defaultMain)
-import Test.Framework.Providers.HUnit (testCase)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.Framework.TH (defaultMainGenerator)
-import Test.HUnit
-       (Test(..), assertBool, assertEqual, assertFailure, runTestTT,
-        (@=?))
-import Test.QuickCheck (Arbitrary(..), (==>))
-import Test.QuickCheck.Instances
-import Text.Show (Show)
+import           Control.Applicative                  (Applicative, pure, (*>),
+                                                       (<*>))
+import           Control.Lens                         (has, makeLenses,
+                                                       makePrisms, view, (&),
+                                                       (.~), (^.))
+import           Control.Monad                        (Monad, mapM_, return)
+import           Control.Monad.Identity               (Identity)
+import           Control.Monad.Loops                  (iterateUntil)
+import           Control.Monad.Reader                 (MonadReader, ReaderT,
+                                                       runReaderT)
+import           Control.Monad.Writer                 (MonadWriter, Writer (..),
+                                                       runWriter, tell)
+import           Data.Bool                            (not)
+import           Data.Eq                              ((==))
+import           Data.Foldable                        (any)
+import           Data.Function                        (const, flip, (.))
+import           Data.Functor                         (Functor, (<$>))
+import           Data.Maybe                           (Maybe (..), isJust)
+import           Data.Ord                             ((<=))
+import           Data.Text                            (Text, isInfixOf,
+                                                       isPrefixOf, length)
+import           Data.Text.IO                         (putStrLn)
+import           Lucid                                (Html, body_, div_)
+import           Network.HTTP.Types.Status            (forbidden403, ok200)
+import           Plpd.MonadLog                        (MonadLog (..))
+import           Plpd.Util                            (none, textShow)
+import           Prelude                              (undefined)
+import           System.FilePath                      (FilePath)
+import           System.IO                            (IO)
+import           Test.Framework                       (defaultMain)
+import           Test.Framework.Providers.HUnit       (testCase)
+import           Test.Framework.Providers.QuickCheck2 (testProperty)
+import           Test.Framework.TH                    (defaultMainGenerator)
+import           Test.HUnit                           (Test (..), assertBool,
+                                                       assertEqual,
+                                                       assertFailure, runTestTT,
+                                                       (@=?))
+import           Test.QuickCheck                      (Arbitrary (..), (==>))
+import           Test.QuickCheck.Instances
+import           Text.Show                            (Show)
+import           Web.Matrix.API                       (MatrixContext (..),
+                                                       MatrixJoinReply (..),
+                                                       MatrixJoinRequest (..),
+                                                       MatrixLoginReply (..),
+                                                       MatrixLoginRequest (..),
+                                                       MatrixSendMessageReply (..),
+                                                       MatrixSendMessageRequest (..),
+                                                       MonadMatrix (..))
+import           Web.Matrix.Bot.IncomingMessage       (IncomingMessage, bodyEnd,
+                                                       bodyStart,
+                                                       constructIncomingMessage,
+                                                       coparseIncomingMessage,
+                                                       markupBody,
+                                                       parseIncomingMessage,
+                                                       plainBody)
+import           Web.Matrix.Bot.WebServer             (WebServerInput (..),
+                                                       WebServerOutput (..),
+                                                       handleMessage)
 
 data MockOperations
     = OperationPutLog Text
@@ -60,8 +72,8 @@ data MockOperations
 makePrisms ''MockOperations
 
 data MatrixProcessors = MatrixProcessors
-    { _mpLogin :: MatrixLoginRequest -> MatrixLoginReply
-    , _mpJoin :: MatrixJoinRequest -> MatrixJoinReply
+    { _mpLogin       :: MatrixLoginRequest -> MatrixLoginReply
+    , _mpJoin        :: MatrixJoinRequest -> MatrixJoinReply
     , _mpSendMessage :: MatrixSendMessageRequest -> MatrixSendMessageReply
     }
 

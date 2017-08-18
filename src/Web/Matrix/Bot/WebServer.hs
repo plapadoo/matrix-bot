@@ -1,6 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Web.Matrix.Bot.WebServer
   (webServer
@@ -13,48 +12,55 @@ module Web.Matrix.Bot.WebServer
   ,wsiBody)
   where
 
-import Control.Lens (makeLenses, to, (^.))
-import Control.Monad (Monad, return, void)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Class (lift)
-import Network.Wai.Handler.Warp (Settings,setPort,setOnExceptionResponse)
-import Network.Wai (responseLBS)
-import Data.ByteString.Lazy (ByteString)
-import Data.ByteString.Lazy.Char8 (pack)
-import Data.Foldable (fold)
-import Data.Function (id, ($), (.))
-import Data.Default(def)
-import Data.Functor ((<$>))
-import Data.Int (Int)
-import Data.Maybe (Maybe(..))
-import Data.Monoid (mempty, (<>))
-import Data.Text (Text)
-import qualified Data.Text.Lazy as TextLazy
-import Data.Text.Lazy.Encoding (decodeUtf8)
-import Plpd.Http (MonadHttp(..))
-import Web.Matrix.Bot.IncomingMessage
-       (markupBody, parseIncomingMessage, plainBody)
-import Web.Matrix.API
-       (MatrixContext(..), MatrixJoinRequest(..), MatrixLoginRequest(..),
-        MatrixSendMessageRequest(..), MonadMatrix(..), joinRoom,
-        joinRoomImpl, login, loginImpl, messageTxnId, mjrpError,
-        mlrpAccessToken, mlrpErrCode, mlrpError, sendMessage,
-        sendMessageImpl)
-import Plpd.MonadLog (MonadLog(..))
-import Plpd.Util
-       (breakOnMaybe, forceEither, surroundHtml, surroundQuotes,
-        textHashAsText, textShow)
-import Network.HTTP.Types.Status
-       (Status, badRequest400, forbidden403, ok200,status500)
-import Network.Wai (Response)
-import Network.Wai.Handler.Warp (Port)
-import Prelude ()
-import System.FilePath (FilePath)
-import Text.Show(show)
-import System.IO (IO)
-import Web.Scotty.Trans
-       (ActionT, ScottyT, body, param, post, scottyOptsT, setHeader, status,Options(..),
-        text)
+import           Control.Lens                   (makeLenses, to, (^.))
+import           Control.Monad                  (Monad, return, void)
+import           Control.Monad.IO.Class         (MonadIO, liftIO)
+import           Control.Monad.Trans.Class      (lift)
+import           Data.ByteString.Lazy           (ByteString)
+import           Data.ByteString.Lazy.Char8     (pack)
+import           Data.Default                   (def)
+import           Data.Foldable                  (fold)
+import           Data.Function                  (id, ($), (.))
+import           Data.Functor                   ((<$>))
+import           Data.Int                       (Int)
+import           Data.Maybe                     (Maybe (..))
+import           Data.Monoid                    (mempty, (<>))
+import           Data.Text                      (Text)
+import qualified Data.Text.Lazy                 as TextLazy
+import           Data.Text.Lazy.Encoding        (decodeUtf8)
+import           Network.HTTP.Types.Status      (Status, badRequest400,
+                                                 forbidden403, ok200, status500)
+import           Network.Wai                    (responseLBS)
+import           Network.Wai                    (Response)
+import           Network.Wai.Handler.Warp       (Settings,
+                                                 setOnExceptionResponse,
+                                                 setPort)
+import           Network.Wai.Handler.Warp       (Port)
+import           Plpd.Http                      (MonadHttp (..))
+import           Plpd.MonadLog                  (MonadLog (..))
+import           Plpd.Util                      (breakOnMaybe, forceEither,
+                                                 surroundHtml, surroundQuotes,
+                                                 textHashAsText, textShow)
+import           Prelude                        ()
+import           System.FilePath                (FilePath)
+import           System.IO                      (IO)
+import           Text.Show                      (show)
+import           Web.Matrix.API                 (MatrixContext (..),
+                                                 MatrixJoinRequest (..),
+                                                 MatrixLoginRequest (..),
+                                                 MatrixSendMessageRequest (..),
+                                                 MonadMatrix (..), joinRoom,
+                                                 joinRoomImpl, login, loginImpl,
+                                                 messageTxnId, mjrpError,
+                                                 mlrpAccessToken, mlrpErrCode,
+                                                 mlrpError, sendMessage,
+                                                 sendMessageImpl)
+import           Web.Matrix.Bot.IncomingMessage (markupBody,
+                                                 parseIncomingMessage,
+                                                 plainBody)
+import           Web.Scotty.Trans               (ActionT, Options (..), ScottyT,
+                                                 body, param, post, scottyOptsT,
+                                                 setHeader, status, text)
 
 instance (Monad m, MonadHttp m) =>
          MonadHttp (ActionT e m) where
@@ -71,10 +77,10 @@ instance (Monad m, MonadLog m) =>
     putLog text = lift (putLog text)
 
 data WebServerInput = WebServerInput
-    { _wsiContext :: MatrixContext
+    { _wsiContext     :: MatrixContext
     , _wsiAccessToken :: Text
-    , _wsiRoom :: Text
-    , _wsiBody :: ByteString
+    , _wsiRoom        :: Text
+    , _wsiBody        :: ByteString
     }
 
 makeLenses ''WebServerInput

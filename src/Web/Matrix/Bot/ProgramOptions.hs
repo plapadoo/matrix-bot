@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Web.Matrix.Bot.ProgramOptions
@@ -7,14 +6,14 @@ module Web.Matrix.Bot.ProgramOptions
   ,poConfigFile)
   where
 
-import Prelude (Int)
-import qualified Options.Applicative as OptAppl
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import System.IO (IO)
-import Data.Monoid ((<>))
-import Control.Applicative ((<$>), (<*>))
-import System.FilePath (FilePath)
-import Control.Lens (makeLenses)
+import           Control.Applicative    ((<$>), (<*>))
+import           Control.Lens           (makeLenses)
+import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Data.Monoid            ((<>))
+import qualified Options.Applicative    as OptAppl
+import           Prelude                (Int)
+import           System.FilePath        (FilePath)
+import           System.IO              (IO)
 
 data ProgramOptions = ProgramOptions
     { _poConfigFile :: FilePath
