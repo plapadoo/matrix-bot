@@ -29,7 +29,8 @@ import           Plpd.Http                     (MonadHttp (..), hrContent,
 import           Plpd.MonadLog                 (MonadLog (..), defaultLog)
 import           Plpd.Util                     (textShow)
 import           Prelude                       (error)
-import           System.IO                     (IO)
+import           System.IO                     (IO, hSetEncoding, stderr,
+                                                stdout, utf8)
 import           System.Random                 (randomIO)
 import           Web.Matrix.API                (MatrixContext (..),
                                                 MatrixLoginRequest (..),
@@ -77,6 +78,8 @@ instance MonadMatrix MyMonad where
 
 main :: IO ()
 main = do
+    hSetEncoding stdout utf8
+    hSetEncoding stderr utf8
     options <- readProgramOptions
     configOptions <- readConfigOptions (options ^. poConfigFile)
     mvar <- newMVar ()
