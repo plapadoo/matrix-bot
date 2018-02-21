@@ -9,7 +9,7 @@ author:              Philipp Middendorf
 maintainer:          Philipp Middendorf <middendorf@plapadoo.de>
 license:             BSD3
 license-file:        LICENSE
-copyright:           plapadoo UG 2017
+copyright:           plapadoo UG 2018
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
@@ -22,15 +22,21 @@ library
                      , Web.Matrix.Bot.WebServer
                      , Web.Matrix.Bot.ConfigOptions
                      , Web.Matrix.Bot.ProgramOptions
+                     , Web.Matrix.Bot.IncomingMessage
+                     , Plpd.Dhall
+                     , Plpd.Http
+                     , Plpd.MonadLog
+                     , Plpd.Util
   build-depends:       base >= 4.7 && < 5
-                     , matrix-bot-api
                      , lens
                      , data-default
                      , filepath
-                     , plpd-utils
                      , warp
                      , wai
                      , optparse-applicative
+                     , cryptonite
+                     , time
+                     , iso8601-time
                      , text
                      , transformers
                      , containers
@@ -44,6 +50,9 @@ library
                      , text-format
                      , scotty
                      , mtl
+                     , uuid
+                     , random
+                     , lucid
                      , attoparsec
                      , aeson
                      , bytestring
@@ -59,7 +68,6 @@ executable matrix-bot-exe
   build-depends:       base >= 4.7 && < 5
                      , matrix-bot
                      , text
-                     , plpd-utils
                      , mtl
                      , time
                      , iso8601-time
@@ -84,8 +92,6 @@ test-suite matrix-bot-test
                      , quickcheck-instances
                      , lucid
                      , text
-                     , matrix-bot-api
-                     , plpd-utils
                      , mtl
                      , QuickCheck
                      , http-types
