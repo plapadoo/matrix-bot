@@ -1,0 +1,20 @@
+compile:
+  stage: build
+  script:
+    - nix-build .
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - imagefile=$(nix-build dockerimage.nix)
+    - sudo docker rmi -f matrix-bot:latest || true
+    - sudo docker load < $imagefile
+    - sudo docker tag matrix-bot:latest $HOST_REGISTRY/matrix-bot:latest
+    - sudo docker login -u $USER_REGISTRY -p $PW_REGISTRY $HOST_REGISTRY
+    - sudo docker push $HOST_REGISTRY/matrix-bot:latest
+    - ssh $SSH_USER@$HOST_WWW "docker rm -f matrix-bot-dev || true"
+    - ssh $SSH_USER@$HOST_WWW "docker rmi -f $HOST_REGISTRY/matrix-bot:latest || true"
+    - ssh $SSH_USER@$HOST_WWW "docker login -u $USER_REGISTRY -p '$PW_REGISTRY' $HOST_REGISTRY"
+    - ssh $SSH_USER@$HOST_WWW "docker run -p 1339:1339 -v /etc/matrix-bot:/etc/matrix-bot:ro --name=matrix-bot-dev --restart=always --network gitlab_nw -d $HOST_REGISTRY/matrix-bot"
