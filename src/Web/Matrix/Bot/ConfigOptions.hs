@@ -4,7 +4,6 @@
 module Web.Matrix.Bot.ConfigOptions(
     ConfigOptions(..)
   , readConfigOptions
-  , coLogFile
   , coListenPort
   , coListenHost
   , coMatrix
@@ -13,24 +12,19 @@ module Web.Matrix.Bot.ConfigOptions(
   , coMatrixBasePath)
   where
 
-import           Control.Applicative    ((<*>))
-import           Control.Lens           (Getter, to)
-import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Data.Function          ((.))
-import           Data.Functor           ((<$>))
-import           Data.Int               (Int)
-import           Data.Maybe             (Maybe)
-import           Data.String            (String, fromString)
-import qualified Data.Text              as Text
-import           Data.Text.Buildable    (build)
-import           Data.Text.Lazy         (toStrict)
-import           Data.Text.Lazy.Builder (toLazyText)
-import qualified Dhall                  as Dhall
-import           GHC.Generics           (Generic)
-import           Plpd.Dhall             (toString, toText)
-import           Prelude                (error, fromIntegral, undefined)
+import           Control.Lens    (Getter, to)
+import           Data.Function   ((.))
+import           Data.Functor    ((<$>))
+import           Data.Int        (Int)
+import           Data.Maybe      (Maybe)
+import           Data.String     (String, fromString)
+import qualified Data.Text       as Text
+import qualified Dhall           as Dhall
+import           GHC.Generics    (Generic)
+import           Plpd.Dhall      (toString, toText)
+import           Prelude         (fromIntegral)
 import           System.FilePath
-import           System.IO              (IO)
+import           System.IO       (IO)
 
 data MatrixOptions = MatrixOptions {
     userName :: Dhall.Text
@@ -39,14 +33,10 @@ data MatrixOptions = MatrixOptions {
   } deriving(Generic,Dhall.Interpret)
 
 data ConfigOptions = ConfigOptions
-    { logFile    :: Dhall.Text
-    , listenPort :: Dhall.Natural
+    { listenPort :: Dhall.Natural
     , listenHost :: Maybe Dhall.Text
     , matrix     :: MatrixOptions
     } deriving(Generic,Dhall.Interpret)
-
-coLogFile :: Getter ConfigOptions FilePath
-coLogFile = to (toString . logFile)
 
 coListenHost :: Getter ConfigOptions (Maybe Text.Text)
 coListenHost = to ((toText <$>) . listenHost)

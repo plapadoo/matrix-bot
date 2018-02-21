@@ -11,9 +11,7 @@ import           Control.Lens           (makeLenses)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Monoid            ((<>))
 import qualified Options.Applicative    as OptAppl
-import           Prelude                (Int)
 import           System.FilePath        (FilePath)
-import           System.IO              (IO)
 
 data ProgramOptions = ProgramOptions
     { _poConfigFile :: FilePath

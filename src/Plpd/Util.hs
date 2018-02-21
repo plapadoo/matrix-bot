@@ -10,25 +10,20 @@ module Plpd.Util
   , textHashAsText
   ) where
 
-import           Control.Monad.IO.Class  (MonadIO, liftIO)
-import           Crypto.Hash             (Digest, SHA3_512, hash, hashlazy)
+import           Crypto.Hash             (Digest, SHA3_512, hash)
 import           Data.Bool               (Bool, not)
 import           Data.ByteString         (ByteString)
 import           Data.Either             (Either (..))
-import           Data.Eq                 ((==))
 import           Data.Foldable           (Foldable, any)
 import           Data.Function           ((.))
-import           Data.Functor            ((<$>))
 import           Data.Maybe              (Maybe (..))
 import           Data.Monoid             (Monoid, (<>))
-import           Data.Text               (Text, breakOn, pack, unpack)
-import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
+import           Data.Text               (Text, breakOn, pack)
+import           Data.Text.Encoding      (encodeUtf8)
 import           Data.Text.Format        (Format, format)
 import           Data.Text.Format.Params (Params)
-import           Data.Text.IO            (appendFile, putStr)
 import           Data.Text.Lazy          (toStrict)
 import           Prelude                 (error)
-import           System.FilePath         (FilePath)
 import           Text.Show               (Show, show)
 
 formatStrict

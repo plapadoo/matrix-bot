@@ -12,13 +12,13 @@ module Web.Matrix.Bot.IncomingMessage
   , markupBody)
   where
 
-import           Control.Lens   (Getter, Lens', Prism', prism', to, _1, _2)
+import           Control.Lens   (Lens')
 import           Data.Bifunctor (Bifunctor (..))
 import           Data.Eq        (Eq)
 import           Data.Foldable  (foldMap)
-import           Data.Function  (id, ($), (.))
+import           Data.Function  (id, (.))
 import           Data.Functor   ((<$>))
-import           Data.Maybe     (Maybe (..), maybe)
+import           Data.Maybe     (Maybe (..))
 import           Data.Monoid    ((<>))
 import qualified Data.Text      as Text
 import           Data.Text.Lazy (toStrict)
@@ -41,8 +41,10 @@ plainBody f (IncomingMessage (t,u)) = (IncomingMessage . (, u)) <$> f t
 markupBody :: Lens' (IncomingMessage a b) (Maybe b)
 markupBody f (IncomingMessage (u,t)) = (IncomingMessage . (u, )) <$> f t
 
+bodyStart :: Text.Text
 bodyStart = "<body>"
 
+bodyEnd :: Text.Text
 bodyEnd = "</body>"
 
 parseIncomingMessage :: Text.Text -> (IncomingMessage Text.Text Text.Text)
@@ -52,9 +54,9 @@ parseIncomingMessage mb =
         Just (_,bodyText) ->
             case breakOnMaybe bodyEnd bodyText of
                 Nothing -> IncomingMessage (mb, Nothing)
-                Just (bodyTextTillEnd,bodyEnd) ->
+                Just (bodyTextTillEnd,bodyEnd') ->
                     IncomingMessage
-                        ( Text.drop 7 bodyEnd
+                        ( Text.drop 7 bodyEnd'
                         , Just (Text.drop 6 bodyTextTillEnd))
 
 constructIncomingMessage :: a -> Maybe b -> IncomingMessage a b

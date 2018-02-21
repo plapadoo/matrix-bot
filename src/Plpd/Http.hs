@@ -6,7 +6,6 @@ module Plpd.Http
   ( HttpMethod(..)
   , HttpRequest(..)
   , HttpResponse(..)
-  , MonadHttp(..)
   , loggingHttp
   , jsonHttpRequest
   , hrUrl
@@ -17,35 +16,31 @@ module Plpd.Http
   , hresContent
   ) where
 
-import           Control.Applicative        (pure)
-import           Control.Lens               (makeLenses, to, view, (&), (.~),
-                                             (?~), (^.))
-import           Control.Monad              (Monad)
-import           Control.Monad.IO.Class     (MonadIO, liftIO)
-import           Data.Aeson                 (FromJSON (..), ToJSON (..),
-                                             eitherDecode, encode, toJSON)
-import           Data.ByteString.Lazy       (ByteString)
-import qualified Data.ByteString.Lazy.Char8 as BSL8
-import           Data.Either                (Either)
-import           Data.Function              (const, ($), (.))
-import           Data.Functor               (Functor, (<$>))
-import           Data.Int                   (Int)
-import           Data.Monoid                ((<>))
-import           Data.String                (String)
-import qualified Data.Text                  as Text
-import           Data.Text.Lazy             (toStrict)
-import           Data.Text.Lazy.Encoding    (decodeUtf8)
-import           Data.UUID                  (UUID, toText)
-import           Network.Wreq               (checkResponse, defaults, header,
-                                             linkURL, param, postWith, putWith,
-                                             responseBody, responseLink,
-                                             responseStatus, statusCode)
-import           Network.Wreq.Types         (ResponseChecker)
-import           Plpd.MonadLog              (MonadLog (..))
-import           Plpd.Util                  (textShow)
-import           System.IO                  (IO)
-import           System.Random              (randomIO)
-import           Text.Show                  (Show, show)
+import           Control.Applicative     (pure)
+import           Control.Lens            (makeLenses, (&), (?~), (^.))
+import           Control.Monad.IO.Class  (MonadIO, liftIO)
+import           Data.Aeson              (FromJSON (..), ToJSON (..),
+                                          eitherDecode, encode)
+import           Data.ByteString.Lazy    (ByteString)
+import           Data.Either             (Either)
+import           Data.Function           (($), (.))
+import           Data.Functor            (Functor, (<$>))
+import           Data.Int                (Int)
+import           Data.Monoid             ((<>))
+import           Data.String             (String)
+import qualified Data.Text               as Text
+import           Data.Text.Lazy          (toStrict)
+import           Data.Text.Lazy.Encoding (decodeUtf8)
+import           Data.UUID               (toText)
+import           Network.Wreq            (checkResponse, defaults, postWith,
+                                          putWith, responseBody, responseStatus,
+                                          statusCode)
+import           Network.Wreq.Types      (ResponseChecker)
+import           Plpd.MonadLog           (LogMode (LogStdout), defaultLog)
+import           Plpd.Util               (textShow)
+import           System.IO               (IO)
+import           System.Random           (randomIO)
+import           Text.Show               (Show, show)
 
 -- HTTP API abstraction
 data HttpMethod
@@ -75,45 +70,37 @@ trivialStatusChecker _ _ = pure ()
 
 makeLenses ''HttpResponse
 
-class MonadHttp m where
-  httpRequest :: HttpRequest ByteString -> m (HttpResponse ByteString)
-
 jsonHttpRequest
-  :: (Functor m, MonadHttp m, ToJSON input, FromJSON output)
+  :: (ToJSON input, FromJSON output, MonadIO m)
   => HttpRequest input -> m (HttpResponse (Either String output))
 jsonHttpRequest request =
   (eitherDecode <$>) <$> httpRequest (encode <$> request)
 
-loggingHttp :: (MonadLog m,MonadIO m,Monad m) => HttpRequest ByteString -> m (HttpResponse ByteString)
+loggingHttp :: HttpRequest ByteString -> IO (HttpResponse ByteString)
 loggingHttp request = do
-        uuid <- toText <$> liftIO randomIO
-        putLog $ uuid <> ": HTTP " <> textShow (request ^. hrMethod) <>
-            " request to " <>
-            (request ^. hrUrl) <>
-            ", content type " <>
-            (request ^. hrContentType) <>
-            ", content: " <>
-            (toStrict . decodeUtf8) (request ^. hrContent)
-        response <- liftIO (httpRequest request)
-        putLog $ uuid <> ": response code " <>
-            textShow (response ^. hresStatusCode) <>
-            ", content: " <>
-            (toStrict . decodeUtf8) (response ^. hresContent)
-        pure response
+  uuid <- toText <$> randomIO
+  defaultLog LogStdout $ uuid <> ": HTTP " <> textShow (request ^. hrMethod) <>
+      " request to " <>
+      (request ^. hrUrl) <>
+      ", content type " <>
+      (request ^. hrContentType) <>
+      ", content: " <>
+      (toStrict . decodeUtf8) (request ^. hrContent)
+  response <- (httpRequest request)
+  defaultLog LogStdout $ uuid <> ": response code " <>
+      textShow (response ^. hresStatusCode) <>
+      ", content: " <>
+      (toStrict . decodeUtf8) (response ^. hresContent)
+  pure response
 
-instance MonadHttp IO where
-  httpRequest request = do
+httpRequest :: MonadIO m => HttpRequest ByteString -> m (HttpResponse ByteString)
+httpRequest request = do
     let opts = defaults & checkResponse ?~ trivialStatusChecker
     let method =
           case request ^. hrMethod of
             HttpMethodPost -> postWith
             HttpMethodPut  -> putWith
-    let methodString =
-          case request ^. hrMethod of
-            HttpMethodPost -> "POST"
-            HttpMethodPut  -> "PUT"
-    response <-
-      liftIO $
-      method opts (Text.unpack (request ^. hrUrl)) (request ^. hrContent)
+    response <- liftIO $
+                method opts (Text.unpack (request ^. hrUrl)) (request ^. hrContent)
     let responseCode = response ^. responseStatus . statusCode
     pure (HttpResponse responseCode (response ^. responseBody))

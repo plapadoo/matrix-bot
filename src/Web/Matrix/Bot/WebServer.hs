@@ -12,69 +12,41 @@ module Web.Matrix.Bot.WebServer
   ,wsiBody)
   where
 
-import           Control.Lens                   (makeLenses, to, (^.))
-import           Control.Monad                  (Monad, return, void)
-import           Control.Monad.IO.Class         (MonadIO, liftIO)
-import           Control.Monad.Trans.Class      (lift)
+import           Control.Applicative            (pure)
+import           Control.Lens                   (makeLenses, (^.))
+import           Control.Monad                  (void)
+import           Control.Monad.IO.Class         (MonadIO)
 import           Data.ByteString.Lazy           (ByteString)
 import           Data.ByteString.Lazy.Char8     (pack)
 import           Data.Default                   (def)
 import           Data.Foldable                  (fold)
-import           Data.Function                  (id, ($), (.))
+import           Data.Function                  (($), (.))
 import           Data.Functor                   ((<$>))
-import           Data.Int                       (Int)
 import           Data.Maybe                     (Maybe (..))
-import           Data.Monoid                    (mempty, (<>))
+import           Data.Monoid                    ((<>))
 import           Data.Text                      (Text)
 import qualified Data.Text.Lazy                 as TextLazy
 import           Data.Text.Lazy.Encoding        (decodeUtf8)
-import           Network.HTTP.Types.Status      (Status, badRequest400,
-                                                 forbidden403, ok200, status500)
+import           Network.HTTP.Types.Status      (Status, forbidden403, ok200,
+                                                 status500)
 import           Network.Wai                    (responseLBS)
-import           Network.Wai                    (Response)
-import           Network.Wai.Handler.Warp       (Settings,
-                                                 setOnExceptionResponse,
+import           Network.Wai.Handler.Warp       (setOnExceptionResponse,
                                                  setPort)
 import           Network.Wai.Handler.Warp       (Port)
-import           Plpd.Http                      (MonadHttp (..))
-import           Plpd.MonadLog                  (MonadLog (..))
-import           Plpd.Util                      (breakOnMaybe, forceEither,
-                                                 surroundHtml, surroundQuotes,
-                                                 textHashAsText, textShow)
+import           Plpd.MonadLog                  (LogMode (..), defaultLog)
 import           Prelude                        ()
-import           System.FilePath                (FilePath)
 import           System.IO                      (IO)
 import           Text.Show                      (show)
 import           Web.Matrix.API                 (MatrixContext (..),
                                                  MatrixJoinRequest (..),
-                                                 MatrixLoginRequest (..),
                                                  MatrixSendMessageRequest (..),
-                                                 MonadMatrix (..), joinRoom,
-                                                 joinRoomImpl, login, loginImpl,
-                                                 messageTxnId, mjrpError,
-                                                 mlrpAccessToken, mlrpErrCode,
-                                                 mlrpError, sendMessage,
-                                                 sendMessageImpl)
+                                                 joinRoom, messageTxnId,
+                                                 mjrpError, sendMessage)
 import           Web.Matrix.Bot.IncomingMessage (markupBody,
                                                  parseIncomingMessage,
                                                  plainBody)
-import           Web.Scotty.Trans               (ActionT, Options (..), ScottyT,
-                                                 body, param, post, scottyOptsT,
-                                                 setHeader, status, text)
-
-instance (Monad m, MonadHttp m) =>
-         MonadHttp (ActionT e m) where
-    httpRequest input = lift (httpRequest input)
-
-instance (Monad m, MonadMatrix m) =>
-         MonadMatrix (ActionT e m) where
-    login context input = lift (login context input)
-    sendMessage context input = lift (sendMessage context input)
-    joinRoom context input = lift (joinRoom context input)
-
-instance (Monad m, MonadLog m) =>
-         MonadLog (ActionT e m) where
-    putLog text = lift (putLog text)
+import           Web.Scotty                     (Options (..), body, param,
+                                                 post, scottyOpts, status, text)
 
 data WebServerInput = WebServerInput
     { _wsiContext     :: MatrixContext
@@ -89,59 +61,51 @@ data WebServerOutput =
     WebServerOutput Text
                     Status
 
-handleMessage
-    :: (Monad m, MonadLog m, MonadMatrix m)
-    => WebServerInput -> m WebServerOutput
+handleMessage :: MonadIO m => WebServerInput -> m WebServerOutput
 handleMessage input = do
-    joinReply <-
-        joinRoom
-            (input ^. wsiContext)
-            (MatrixJoinRequest (input ^. wsiAccessToken) (input ^. wsiRoom))
-    case joinReply ^. mjrpError of
-        Nothing -> do
-            putLog $ "Join " <> (input ^. wsiRoom) <> " success"
-            let wholeBody =
-                    (parseIncomingMessage . TextLazy.toStrict . decodeUtf8)
-                        (input ^. wsiBody)
-                plain = wholeBody ^. plainBody
-                markup = wholeBody ^. markupBody
-            putLog $
-                "Sending message “" <> plain <> "”, markup “" <> fold markup <>
-                "”"
-            -- FIXME: This has a very subtle bug: the transaction ID doesn't
-            -- on the current time, so two exactly identical messages are
-            -- filtered by the server. But I was too lazy to add another
-            -- type class "MonadTime" or something here.
-            void $
-                sendMessage
-                    (input ^. wsiContext)
-                    (MatrixSendMessageRequest
-                         (input ^. wsiAccessToken)
-                         (messageTxnId (input ^. wsiAccessToken) plain)
-                         (input ^. wsiRoom)
-                         plain
-                         markup)
-            return (WebServerOutput "success" ok200)
-        Just e -> do
-            putLog $ "join " <> (input ^. wsiRoom) <> " failed: " <> e
-            return (WebServerOutput ("join failed: " <> e) forbidden403)
+  joinReply <-
+    joinRoom
+      (input ^. wsiContext)
+      (MatrixJoinRequest (input ^. wsiAccessToken) (input ^. wsiRoom))
+  case joinReply ^. mjrpError of
+    Nothing -> do
+      defaultLog LogStdout $ "Join " <> (input ^. wsiRoom) <> " success"
+      let wholeBody =
+            (parseIncomingMessage . TextLazy.toStrict . decodeUtf8)
+            (input ^. wsiBody)
+          plain = wholeBody ^. plainBody
+          markup = wholeBody ^. markupBody
+      defaultLog LogStdout $
+        "Sending message “" <> plain <> "”, markup “" <> fold markup <> "”"
+      -- FIXME: This has a very subtle bug: the transaction ID doesn't
+      -- on the current time, so two exactly identical messages are
+      -- filtered by the server. But I was too lazy to add another
+      -- type class "MonadTime" or something here.
+      void $
+        sendMessage
+          (input ^. wsiContext)
+          (MatrixSendMessageRequest
+            (input ^. wsiAccessToken)
+            (messageTxnId (input ^. wsiAccessToken) plain)
+            (input ^. wsiRoom)
+            plain
+            markup)
+      pure (WebServerOutput "success" ok200)
+    Just e -> do
+      defaultLog LogStdout $ "join " <> (input ^. wsiRoom) <> " failed: " <> e
+      pure (WebServerOutput ("join failed: " <> e) forbidden403)
 
-webServer
-    :: forall m.
-       (MonadIO m, Monad m, MonadLog m, MonadMatrix m)
-    => Port -> MatrixContext -> Text -> (m Response -> IO Response) -> IO ()
-webServer listenPort context accessToken downToIO =
-    scottyOptsT
-        (def { settings = (setOnExceptionResponse onE (setPort listenPort (settings def))) })
-        downToIO
-        (post "/:room" handler :: ScottyT TextLazy.Text m ())
-  where
+webServer :: Port -> MatrixContext -> Text -> IO ()
+webServer listenPort context accessToken =
+  let
+    opts = def { settings = setOnExceptionResponse onE (setPort listenPort (settings def)) }
     onE e = responseLBS status500 [] ("Something went wrong: " <> pack (show e))
-    handler :: ActionT TextLazy.Text m ()
-    handler = do
+  in
+    scottyOpts opts $
+      post "/:room" $ do
         room <- TextLazy.toStrict <$> param "room"
         b <- body
         (WebServerOutput resultText resultStatus) <-
-            handleMessage (WebServerInput context accessToken room b)
+          handleMessage (WebServerInput context accessToken room b)
         text (TextLazy.fromStrict resultText)
         status resultStatus

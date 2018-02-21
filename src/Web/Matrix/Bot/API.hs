@@ -22,7 +22,7 @@ responseToBool :: HttpResponse ByteString -> Bool
 responseToBool (HttpResponse 200 "success") = True
 responseToBool _                            = False
 
-sendMessage :: (Functor m, MonadHttp m) => Text -> Text -> (IncomingMessage Text (Html ())) -> m Bool
+sendMessage :: (Functor m, MonadHttp m) => Text -> Text -> IncomingMessage Text (Html ()) -> m Bool
 sendMessage url room incomingMessage =
   let request = HttpRequest {
           _hrUrl = url <> "/" <> room

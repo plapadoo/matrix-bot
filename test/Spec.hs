@@ -27,7 +27,6 @@ import           Data.Text                            (Text, isInfixOf,
 import           Data.Text.IO                         (putStrLn)
 import           Lucid                                (Html, body_, div_)
 import           Network.HTTP.Types.Status            (forbidden403, ok200)
-import           Plpd.MonadLog                        (MonadLog (..))
 import           Plpd.Util                            (none, textShow)
 import           Prelude                              (undefined)
 import           System.FilePath                      (FilePath)
@@ -49,8 +48,7 @@ import           Web.Matrix.API                       (MatrixContext (..),
                                                        MatrixLoginReply (..),
                                                        MatrixLoginRequest (..),
                                                        MatrixSendMessageReply (..),
-                                                       MatrixSendMessageRequest (..),
-                                                       MonadMatrix (..))
+                                                       MatrixSendMessageRequest (..))
 import           Web.Matrix.Bot.IncomingMessage       (IncomingMessage, bodyEnd,
                                                        bodyStart,
                                                        constructIncomingMessage,
@@ -87,58 +85,6 @@ processorsNoError =
     MatrixProcessors loginNoError joinNoError sendMessageNoError
 
 makeLenses ''MatrixProcessors
-
-newtype MyMonad a = MyMonad
-    { runMyMonad :: ReaderT MatrixProcessors (Writer [MockOperations]) a
-    } deriving (Functor,Applicative,Monad,MonadWriter [MockOperations],MonadReader MatrixProcessors)
-
-instance MonadLog MyMonad where
-    putLog text = tell [OperationPutLog text]
-
-instance MonadMatrix MyMonad where
-    login mc request =
-        tell [OperationMatrixLogin request] *> view mpLogin <*> pure request
-    joinRoom mc request =
-        tell [OperationMatrixJoin request] *> view mpJoin <*> pure request
-    sendMessage mc request =
-        tell [OperationMatrixSendMessage request] *> view mpSendMessage <*>
-        pure request
-
-case_joinFails = do
-    let (WebServerOutput _ status,logs) =
-            (runWriter .
-             (flip runReaderT)
-                 (processorsNoError & mpJoin .~
-                  (const (MatrixJoinReply (Just "foo") (Just "bar")))) .
-             runMyMonad)
-                (handleMessage
-                     (WebServerInput
-                          (MatrixContext "baseurl")
-                          "accesstoken"
-                          "room"
-                          "<body>markup</body>simple"))
-    mapM_ (putStrLn . textShow) logs
-    assertBool "No join found! " (any (has _OperationMatrixJoin) logs)
-    assertBool
-        "Send message found! "
-        (none (has _OperationMatrixSendMessage) logs)
-    forbidden403 @=? status
-
-case_allSucceeds = do
-    let (WebServerOutput _ status,logs) =
-            (runWriter . (flip runReaderT) processorsNoError . runMyMonad)
-                (handleMessage
-                     (WebServerInput
-                          (MatrixContext "baseurl")
-                          "accesstoken"
-                          "room"
-                          "<body>markup</body>simple"))
-    mapM_ (putStrLn . textShow) logs
-    assertBool "No join found! " (any (has _OperationMatrixJoin) logs)
-    assertBool
-        "No send message found! "
-        (any (has _OperationMatrixSendMessage) logs)
-    ok200 @=? status
 
 case_parseMessageWithoutBody = do
     let input = "lol"
