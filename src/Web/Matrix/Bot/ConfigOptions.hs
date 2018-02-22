@@ -12,19 +12,18 @@ module Web.Matrix.Bot.ConfigOptions(
   , coMatrixBasePath)
   where
 
-import           Control.Lens    (Getter, to)
-import           Data.Function   ((.))
-import           Data.Functor    ((<$>))
-import           Data.Int        (Int)
-import           Data.Maybe      (Maybe)
-import           Data.String     (String, fromString)
-import qualified Data.Text       as Text
-import qualified Dhall           as Dhall
-import           GHC.Generics    (Generic)
-import           Plpd.Dhall      (toString, toText)
-import           Prelude         (fromIntegral)
-import           System.FilePath
-import           System.IO       (IO)
+import           Control.Lens  (Getter, to)
+import           Data.Function ((.))
+import           Data.Functor  ((<$>))
+import           Data.Int      (Int)
+import           Data.Maybe    (Maybe)
+import           Data.String   (String, fromString)
+import qualified Data.Text     as Text
+import qualified Dhall         as Dhall
+import           GHC.Generics  (Generic)
+import           Plpd.Dhall    (toText)
+import           Prelude       (fromIntegral)
+import           System.IO     (IO)
 
 data MatrixOptions = MatrixOptions {
     userName :: Dhall.Text
@@ -33,7 +32,7 @@ data MatrixOptions = MatrixOptions {
   } deriving(Generic,Dhall.Interpret)
 
 data ConfigOptions = ConfigOptions
-    { listenPort :: Dhall.Natural
+    { listenPort :: Maybe Dhall.Natural
     , listenHost :: Maybe Dhall.Text
     , matrix     :: MatrixOptions
     } deriving(Generic,Dhall.Interpret)
@@ -53,8 +52,8 @@ coMatrixPassword = to (toText . password)
 coMatrixBasePath :: Getter MatrixOptions Text.Text
 coMatrixBasePath = to (toText . basePath)
 
-coListenPort :: Getter ConfigOptions Int
-coListenPort = to (fromIntegral . listenPort)
+coListenPort :: Getter ConfigOptions (Maybe Int)
+coListenPort = to ((fromIntegral <$>) . listenPort)
 
 readConfigOptions :: String -> IO ConfigOptions
 readConfigOptions = Dhall.detailed . Dhall.input Dhall.auto . fromString

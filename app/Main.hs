@@ -14,7 +14,7 @@ import           Data.Either                   (Either (..))
 import           Data.Eq                       ((==))
 import           Data.Function                 (const, flip, ($), (.))
 import           Data.Functor                  (Functor, (<$>))
-import           Data.Maybe                    (Maybe (..), fromJust)
+import           Data.Maybe                    (Maybe (..), fromJust, fromMaybe)
 import           Data.Monoid                   ((<>))
 import           Data.String                   (String)
 import qualified Data.Text                     as Text
@@ -51,7 +51,7 @@ main = do
     Left e -> error e
     Right accessToken ->
       webServer
-        (configOptions ^. coListenPort)
+        (fromMaybe 8080 (configOptions ^. coListenPort))
         (MatrixContext (configOptions ^. coMatrix . coMatrixBasePath))
         accessToken
 

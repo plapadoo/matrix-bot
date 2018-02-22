@@ -1,5 +1,5 @@
 {
-  listenPort = +1339
+  listenPort = [+1339] : Optional Integer
 , listenHost = ["localhost"] : Optional Text
 , matrix = {
       userName = "gitbot"
