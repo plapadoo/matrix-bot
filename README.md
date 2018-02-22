@@ -46,6 +46,26 @@ The bot has just a single configuration file, which is written in the [dhall con
 
 ## Usage
 
+In the configuration file, you specify a user name and password. This is the account the bot is linked to. It can be your own account, or one specially created for the bot. The bot will post messages using this user’s name. It can only send messages to rooms it’s invited to (it will join these rooms automatically, though).
+
 The bot listens on a HTTP port (1339 by default). The path specifies the *internal room number* of the room you want to post to. You can query the internal room number by pressing the gear icon on the top left in a room and then scrolling all the way down.
 
 ![Gear icon to get the internal room number](./docs/gear.png)
+
+The matrix.org protocol lets you specify both a plain text version of a message and a “rich text” version (e.g. something containing HTML). With the bot, you can specify both (or just one of them), as such: 
+
+If the body of the HTTP request starts with `<body>`, what follows is the HTML encoded message (until the closing `</body>`). Directly after that is the plain-text version of the message. Both plain-text and HTML can be omitted.
+
+For example, this snippet:
+
+    curl -d "hi!" "http://localhost:1339/!PEzdwmhuVvTZeSHPIa:chat.mycompany.com"
+
+Will post `hi!` to the channel with the internal ID `!PEzdwmhuVvTZeSHPIa:chat.mycompany.com`.
+
+This snippet:
+
+    curl -d "<body><em>hi</em>!</body>hi!" "http://localhost:1339/!PEzdwmhuVvTZeSHPIa:chat.mycompany.com"
+
+Does the same, but adds a HTML version of the text, with an emphasis.
+
+The bot will output `success` if everything worked, otherwise it’ll output an error message (and return an error code).
