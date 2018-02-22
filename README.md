@@ -2,7 +2,7 @@
 
 This bot enables you to use curl, wget or any other HTTP client to post messages to [matrix.org](https://matrix.org) channels, without specifying credentials, logging in or joining rooms manually. You can use it to write scripts that publish important information, like service restarts, new mails, ….
 
-![How matrix-bot works](./docs/overview.svg)
+![How matrix-bot works](./docs/overview.png)
 
 ## Installation
 
