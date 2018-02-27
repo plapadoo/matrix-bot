@@ -9,17 +9,27 @@ let
     };
   };
 
-  pkgs = import <nixpkgs> { inherit config; };
+  bootstrap = import <nixpkgs> { };
+
+  nixpkgs = builtins.fromJSON (builtins.readFile ./nixpkgs.json);
+
+  src = bootstrap.fetchFromGitHub {
+    owner = "NixOS";
+    repo  = "nixpkgs-channels";
+    inherit (nixpkgs) rev sha256;
+  };
+
+  pkgs = import src { inherit config; };
 
   # We need this "mess" in order to get a minimal base image containing /etc/services, /etc/protocols
   # and maybe even certificates. http(s) is hard.
   # See https://github.com/NixOS/nixpkgs/issues/18038
   minimalDocker = {
-    imports = [ <nixpkgs/nixos/modules/profiles/minimal.nix> ];
+    imports = [ "${src}/nixos/modules/profiles/minimal.nix" ];
     boot.isContainer = true;
   };
 
-  eval = import <nixpkgs/nixos/lib/eval-config.nix> {
+  eval = import "${src}/nixos/lib/eval-config.nix" {
     modules = [
       minimalDocker
     ];
