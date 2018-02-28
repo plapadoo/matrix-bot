@@ -14,6 +14,9 @@ module Plpd.Http
   , hrContent
   , hresStatusCode
   , hresContent
+  , JsonParseError
+  , jpeOriginal
+  , jpeError
   ) where
 
 import           Control.Applicative     (pure)
@@ -21,6 +24,7 @@ import           Control.Lens            (makeLenses, (&), (?~), (^.))
 import           Control.Monad.IO.Class  (MonadIO, liftIO)
 import           Data.Aeson              (FromJSON (..), ToJSON (..),
                                           eitherDecode, encode)
+import           Data.Bifunctor          (first)
 import           Data.ByteString.Lazy    (ByteString)
 import           Data.Either             (Either)
 import           Data.Function           (($), (.))
@@ -70,11 +74,22 @@ trivialStatusChecker _ _ = pure ()
 
 makeLenses ''HttpResponse
 
+-- eitherDecode returns an error, but keeping the original reply is even better.
+data JsonParseError = JsonParseError {
+    _jpeOriginal :: ByteString
+  , _jpeError    :: String
+  }
+
+makeLenses ''JsonParseError
+
+eitherDecodeKeep :: FromJSON a => ByteString -> Either JsonParseError a
+eitherDecodeKeep original = first (JsonParseError original) (eitherDecode original)
+
 jsonHttpRequest
   :: (ToJSON input, FromJSON output, MonadIO m)
-  => HttpRequest input -> m (HttpResponse (Either String output))
+  => HttpRequest input -> m (HttpResponse (Either JsonParseError output))
 jsonHttpRequest request =
-  (eitherDecode <$>) <$> httpRequest (encode <$> request)
+  (eitherDecodeKeep <$>) <$> httpRequest (encode <$> request)
 
 loggingHttp :: HttpRequest ByteString -> IO (HttpResponse ByteString)
 loggingHttp request = do

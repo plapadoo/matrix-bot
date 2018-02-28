@@ -31,19 +31,20 @@ import           Control.Lens           (makeLenses, view, (^.))
 import           Control.Monad.IO.Class (MonadIO)
 import           Data.Aeson             (FromJSON (..), ToJSON (..), Value (..),
                                          object, (.:?), (.=))
-import           Data.Either            (Either (..))
-import           Data.Function          ((.))
+import           Data.Either            (Either (..), either)
+import           Data.Function          (id, (.))
 import           Data.Functor           ((<$>))
 import           Data.Maybe             (Maybe (..))
 import           Data.Monoid            ((<>))
 import           Data.String            (String)
 import qualified Data.Text              as Text
 import           Plpd.Http              (HttpMethod (..), HttpRequest (..),
-                                         HttpResponse, hresContent,
+                                         HttpResponse, JsonParseError,
+                                         hresContent, jpeError, jpeOriginal,
                                          jsonHttpRequest)
-import           Plpd.Util              (forceEither, textHashAsText)
+import           Plpd.Util              (textHashAsText)
 import           Prelude                (error)
-import           Text.Show              (Show)
+import           Text.Show              (Show, show)
 
 data MatrixLoginRequest = MatrixLoginRequest
     { _mlrUsername :: Text.Text
@@ -138,8 +139,13 @@ data MatrixContext = MatrixContext
 
 makeLenses ''MatrixContext
 
-viewReply :: HttpResponse (Either String c) -> c
-viewReply = forceEither . view hresContent
+errorLeft :: (a -> b) -> Either a b -> b
+errorLeft f = either f id
+
+viewReply :: HttpResponse (Either JsonParseError c) -> c
+viewReply = errorLeft (error . formatError) . view hresContent
+  where formatError :: JsonParseError -> String
+        formatError e = "error parsing json reply: “" <> (e ^. jpeError) <> "”, response was:\n\n" <> show (e ^. jpeOriginal)
 
 requestThenViewReply
     :: (ToJSON input, FromJSON output, MonadIO m)

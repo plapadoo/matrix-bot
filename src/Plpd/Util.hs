@@ -1,6 +1,5 @@
 module Plpd.Util
-  ( forceEither
-  , textShow
+  ( textShow
   , formatStrict
   , surround
   , none
@@ -13,7 +12,6 @@ module Plpd.Util
 import           Crypto.Hash             (Digest, SHA3_512, hash)
 import           Data.Bool               (Bool, not)
 import           Data.ByteString         (ByteString)
-import           Data.Either             (Either (..))
 import           Data.Foldable           (Foldable, any)
 import           Data.Function           ((.))
 import           Data.Maybe              (Maybe (..))
@@ -23,7 +21,6 @@ import           Data.Text.Encoding      (encodeUtf8)
 import           Data.Text.Format        (Format, format)
 import           Data.Text.Format.Params (Params)
 import           Data.Text.Lazy          (toStrict)
-import           Prelude                 (error)
 import           Text.Show               (Show, show)
 
 formatStrict
@@ -51,12 +48,6 @@ surroundHtml tagName inside =
 
 surroundQuotes :: Text -> Text
 surroundQuotes = surround "“" "”"
-
-forceEither
-  :: Show e
-  => Either e a -> a
-forceEither (Left e)  = error (show e)
-forceEither (Right e) = e
 
 breakOnMaybe :: Text -> Text -> Maybe (Text, Text)
 breakOnMaybe needle haystack =
