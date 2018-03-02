@@ -44,7 +44,7 @@ The bot can be compiled using [cabal-install](https://www.haskell.org/cabal/) by
 
 ## Configuration
 
-The bot has just a single configuration file, which is written in the [dhall configuration language](https://github.com/dhall-lang/dhall-lang/blob/master/README.md). The format should be self-explanatory. Check out the 
+The bot has just a single configuration file, which is written in the [dhall configuration language](https://github.com/dhall-lang/dhall-lang/blob/master/README.md). The format should be self-explanatory. Check out [docs/matrix-bot.dhall](docs/matrix-bot.dhall) for a sample configuration.
 
 ## Usage
 
