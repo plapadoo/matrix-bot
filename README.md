@@ -12,7 +12,7 @@ This bot enables you to use curl, wget or any other HTTP client to post messages
 
 The easiest way to install the bot (or just try it out) is via Docker. Just pull the docker image via
 
-    docker run --rm -v ./docs:/etc/matrix-bot:ro -p 1339:1339 plapadoo/matrix-bot
+    docker run -v ./docs:/etc/matrix-bot:ro -p 1339:1339 -d plapadoo/matrix-bot
 	
 This will pull the official image from [Docker Hub](https://hub.docker.com/r/plapadoo/matrix-bot/) and start the container, thus starting the bot. Because the bot needs to log in to matrix, you need to specify a server, a login name and a password. This cannot be done from the command line at the moment – you need a config file. The repository contains a sample config file in the `docs/` directory.
 
