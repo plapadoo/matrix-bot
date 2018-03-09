@@ -60,13 +60,13 @@ If the body of the HTTP request starts with `<body>`, what follows is the HTML e
 
 For example, this snippet:
 
-    curl -d "hi!" "http://localhost:1339/!PEzdwmhuVvTZeSHPIa:chat.mycompany.com"
+    curl -d 'hi!' 'http://localhost:1339/!PEzdwmhuVvTZeSHPIa:chat.mycompany.com'
 
 Will post `hi!` to the channel with the internal ID `!PEzdwmhuVvTZeSHPIa:chat.mycompany.com`.
 
 This snippet:
 
-    curl -d "<body><em>hi</em>!</body>hi!" "http://localhost:1339/!PEzdwmhuVvTZeSHPIa:chat.mycompany.com"
+    curl -d '<body><em>hi</em>!</body>hi!' 'http://localhost:1339/!PEzdwmhuVvTZeSHPIa:chat.mycompany.com'
 
 Does the same, but adds a HTML version of the text, with an emphasis.
 
