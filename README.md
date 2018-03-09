@@ -12,8 +12,8 @@ This bot enables you to use curl, wget or any other HTTP client to post messages
 
 The easiest way to install the bot (or just try it out) is via Docker. Just pull the docker image via
 
-    docker run -v ./docs:/etc/matrix-bot:ro -p 1339:1339 -d plapadoo/matrix-bot
-	
+    docker run --tty --detach --volume ./docs:/etc/matrix-bot:ro --publish 1339:1339 plapadoo/matrix-bot
+
 This will pull the official image from [Docker Hub](https://hub.docker.com/r/plapadoo/matrix-bot/) and start the container, thus starting the bot. Because the bot needs to log in to matrix, you need to specify a server, a login name and a password. This cannot be done from the command line at the moment – you need a config file. The repository contains a sample config file in the `docs/` directory.
 
 The bot will immediately try to log in to matrix and tell you if that worked.
@@ -31,11 +31,11 @@ Assuming you have compiled the bot yourself, you’re left with a single executa
 The easiest way to compile the bot or the docker image from source is to use the [nix package manager](https://nixos.org/nix/). With it, you can build the bot using
 
     nix-build
-	
+
 The resulting files will be located in the `result/` directory. To build the Docker image, use
 
     nix-build dockerimage.nix
-	
+
 This will, at the last line, output a path that you can feed into `docker load`.
 
 ### Using cabal
@@ -54,7 +54,7 @@ The bot listens on a HTTP port (1339 by default). The path specifies the *intern
 
 ![Gear icon to get the internal room number](./docs/gear.png)
 
-The matrix.org protocol lets you specify both a plain text version of a message and a “rich text” version (e.g. something containing HTML). With the bot, you can specify both (or just one of them), as such: 
+The matrix.org protocol lets you specify both a plain text version of a message and a “rich text” version (e.g. something containing HTML). With the bot, you can specify both (or just one of them), as such:
 
 If the body of the HTTP request starts with `<body>`, what follows is the HTML encoded message (until the closing `</body>`). Directly after that is the plain-text version of the message. Both plain-text and HTML can be omitted.
 
